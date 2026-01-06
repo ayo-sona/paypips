@@ -1,5 +1,5 @@
 {
-  "name": "paypips",
+  "name": "fund-flow",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,14 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.90.16",
-    "@tanstack/react-query-devtools": "^5.91.2",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "recharts": "^3.6.0"
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
