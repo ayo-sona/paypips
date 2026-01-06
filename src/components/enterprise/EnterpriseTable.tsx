@@ -1,6 +1,6 @@
 'use client';
 
-import { PaymentReminder } from '@/types/enterprise';
+import { PaymentReminder } from '../../types/enterprise';
 import { Mail, MessageSquare, Phone, Clock, CheckCircle, XCircle } from 'lucide-react';
 import clsx from 'clsx';
 

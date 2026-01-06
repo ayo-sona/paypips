@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, Search } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { ThemeToggle } from '../layout/themeToggle';
 import { NotificationPanel } from './EnterpriseNotificationPanel';
 

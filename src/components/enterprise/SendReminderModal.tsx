@@ -531,7 +531,7 @@ For example:
             </div>
 
             {/* Cost Summary */}
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-5">
+            <div className="bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-6 h-6 text-green-600" />
@@ -579,7 +579,7 @@ For example:
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t-2 border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 flex justify-between items-center">
+        <div className="p-6 border-t-2 border-gray-200 bg-linear-to-r from-gray-50 to-blue-50 flex justify-between items-center">
           <button
             onClick={onClose}
             className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-white font-medium transition-all transform hover:scale-105"
@@ -589,7 +589,7 @@ For example:
           <button
             onClick={handleSend}
             disabled={scheduleFor === 'later' && !scheduledDate}
-            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center gap-2 font-semibold transition-all transform hover:scale-105 shadow-lg disabled:shadow-none"
+            className="px-8 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center gap-2 font-semibold transition-all transform hover:scale-105 shadow-lg disabled:shadow-none"
           >
             <Send className="w-5 h-5" />
             {scheduleFor === 'now' ? 'Send Now' : 'Schedule Reminder'}

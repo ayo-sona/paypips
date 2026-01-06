@@ -92,7 +92,7 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
                 }`}
                 onClick={onClose}
               >
-                <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${notification.color}`}>
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${notification.color}`}>
                   <Icon className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -107,7 +107,7 @@ export function NotificationPanel({ onClose }: NotificationPanelProps) {
                   </p>
                 </div>
                 {!notification.read && (
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <span className="inline-block h-2 w-2 rounded-full bg-blue-600" />
                   </div>
                 )}

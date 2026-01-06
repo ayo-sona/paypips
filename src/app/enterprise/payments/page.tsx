@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { PaymentsTable } from '../../../components/enterprise/PaymentsTable';
 import { PaymentFilters } from '../../../components/enterprise/PaymentFilters';
 import { MOCK_PAYMENTS } from '../../../lib/mockData/enterpriseMockdata';
-import { Payment } from '../../../types/enterprise';
+// import { Payment } from '../../../types/enterprise';
 import { DollarSign, TrendingUp, CreditCard, Users } from 'lucide-react';
 
 export default function PaymentsPage() {
