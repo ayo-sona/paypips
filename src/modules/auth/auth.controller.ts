@@ -1,4 +1,3 @@
-// src/modules/auth/auth.controller.ts
 import {
   Controller,
   Post,
@@ -27,24 +26,64 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Register a new user and organization' })
   @ApiResponse({
     status: 201,
     description: 'User and organization successfully registered',
+    content: {
+      'application/json': {
+        example: {
+          access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          user: {
+            id: '123e4567-e89b-12d3-a456-426614174000',
+            email: 'levi@life.com',
+            firstName: 'Levi',
+            lastName: 'Ackerman',
+            role: 'admin',
+          },
+          organization: {
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            name: 'Life Fitness',
+            email: 'wibble@life.com',
+          },
+        },
+      },
+    },
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 409, description: 'Email already exists' })
+  @ApiResponse({ status: 500, description: 'Internal Server Error' })
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  //   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Login with email and password' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    content: {
+      'application/json': {
+        example: {
+          access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          user: {
+            id: '123e4567-e89b-12d3-a456-426614174000',
+            email: 'john@test.com',
+            firstName: 'John',
+            lastName: 'Doe',
+            role: 'admin',
+          },
+          organization: {
+            id: '123e4567-e89b-12d3-a456-426614174000',
+            name: 'Test Organization',
+          },
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 500, description: 'Internal Server Error' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
@@ -56,8 +95,26 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'User profile retrieved successfully',
+    content: {
+      'application/json': {
+        example: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          email: 'user@example.com',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'admin',
+          organization: {
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            name: 'Example Corp',
+            email: 'john@test.com',
+            subscription_plan: 'free',
+          },
+        },
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 500, description: 'Internal Server Error' })
   async getProfile(@CurrentUser() user: any) {
     return this.authService.getProfile(user.id);
   }

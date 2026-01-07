@@ -12,7 +12,7 @@ import * as entities from './entities';
         // Parse Supabase connection string
         const supabaseUrl = configService.get('supabase.url');
         const serviceKey = configService.get('supabase.serviceKey');
-        console.log(supabaseUrl);
+        // console.log(supabaseUrl);
 
         return {
           type: 'postgres',

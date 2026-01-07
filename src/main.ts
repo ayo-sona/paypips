@@ -36,6 +36,7 @@ async function bootstrap() {
     .setTitle('PayPips API')
     .setDescription('The PayPips API documentation')
     .setVersion('1.0')
+    .setContact('PayPips', 'https://paypips.vercel.app', 'keneusih@gmail.com')
     .addBearerAuth(
       {
         type: 'http',

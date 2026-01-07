@@ -4,7 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 export class RegisterDto {
   @ApiProperty({
     description: 'Organization name',
-    example: 'Acme Inc',
+    example: 'Life Fitness',
   })
   @IsString()
   @IsNotEmpty()
@@ -12,14 +12,14 @@ export class RegisterDto {
 
   @ApiProperty({
     description: 'Organization email',
-    example: 'contact@acme.com',
+    example: 'wibble@life.com',
   })
   @IsEmail()
   organizationEmail: string;
 
   @ApiProperty({
     description: 'User first name',
-    example: 'John',
+    example: 'Levi',
   })
   @IsString()
   @IsNotEmpty()
@@ -27,7 +27,7 @@ export class RegisterDto {
 
   @ApiProperty({
     description: 'User last name',
-    example: 'Doe',
+    example: 'Ackerman',
   })
   @IsString()
   @IsNotEmpty()
@@ -35,7 +35,7 @@ export class RegisterDto {
 
   @ApiProperty({
     description: 'User email',
-    example: 'user@acme.com',
+    example: 'levi@life.com',
   })
   @IsEmail()
   userEmail: string;
@@ -43,7 +43,7 @@ export class RegisterDto {
   @ApiProperty({
     description: 'User password',
     minLength: 8,
-    example: 'password',
+    example: 'password123',
   })
   @IsString()
   @MinLength(8)
