@@ -30,10 +30,10 @@ async function bootstrap() {
   app.setGlobalPrefix(apiPrefix);
 
   // CORS
-  const allowedOrigins = [
-    configService.get('frontend.url'),
-    'https://paypips.vercel.app',
-  ];
+  const frontendUrl = configService.get('frontend.url');
+  // console.log('frontendUrl', typeof frontendUrl, frontendUrl);
+
+  const allowedOrigins = ['https://paypips.vercel.app', frontendUrl];
   app.enableCors({
     origin: (
       origin: string | undefined,
