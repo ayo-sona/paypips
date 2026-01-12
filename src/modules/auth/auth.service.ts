@@ -66,7 +66,7 @@ export class AuthService {
 
     // Check if user email exists
     const existingUser = await this.userRepository.findOne({
-      where: { email: registerDto.userEmail },
+      where: { email: registerDto.email },
     });
 
     if (existingUser) {
@@ -90,7 +90,7 @@ export class AuthService {
     // Create admin user
     const user = this.userRepository.create({
       organization_id: savedOrg.id,
-      email: registerDto.userEmail,
+      email: registerDto.email,
       password_hash: hashedPassword,
       first_name: registerDto.firstName,
       last_name: registerDto.lastName,

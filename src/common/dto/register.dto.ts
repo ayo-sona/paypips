@@ -44,7 +44,7 @@ export class RegisterDto {
     example: 'levi@life.com',
   })
   @IsEmail()
-  userEmail: string;
+  email: string;
 
   @ApiProperty({
     description: 'User password',

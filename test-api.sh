@@ -19,7 +19,7 @@ REGISTER_RESPONSE=$(curl -s -X POST $BASE_URL/auth/register \
     "organizationEmail": "gym@testlagos.com",
     "firstName": "Admin",
     "lastName": "User",
-    "userEmail": "admin@testlagos.com",
+    "email": "admin@testlagos.com",
     "password": "password123"
   }')
 

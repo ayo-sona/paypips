@@ -77,7 +77,7 @@ REGISTER_RESPONSE=$(curl -s -c cookies.txt -X POST "$BASE_URL/auth/register" \
     "organizationEmail": "sectest@example.com",
     "firstName": "Test",
     "lastName": "User",
-    "userEmail": "sectest@example.com",
+    "email": "sectest@example.com",
     "password": "SecurePass123!"
   }')
 
