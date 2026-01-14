@@ -1,152 +1,77 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { User, Building2, ArrowRight } from "lucide-react";
+import { LogIn, ArrowRight } from "lucide-react";
 import Link from "next/link";
-
-type UserType = "member" | "organization";
+import { useState } from "react";
 
 export default function AuthPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [userType, setUserType] = useState<UserType | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check for redirect URL
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
-
-  // Handle user type selection
-  const selectUserType = (type: UserType) => {
-    setUserType(type);
-    setError(null);
-  };
-
-  // Handle back navigation
-  const goBack = () => {
-    setUserType(null);
-    setError(null);
-  };
-
-  // Handle successful authentication
-  const handleAuthSuccess = () => {
-    router.push(redirectTo);
-  };
-
-  // Handle authentication errors
-  const handleAuthError = (error: string) => {
-    setError(error);
-    setIsLoading(false);
-  };
-
-  if (userType) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <button
-            onClick={goBack}
-            className="mb-8 text-gray-400 hover:text-white transition-colors"
-            disabled={isLoading}
-          >
-            ← Back
-          </button>
-
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold">
-              {userType === "member" ? "Member" : "Organization"} Authentication
-            </h2>
-
-            {error && (
-              <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-md">
-                {error}
-              </div>
-            )}
-
-            <div className="grid gap-4">
-              <Link
-                href={`/auth/${userType}/login${
-                  redirectTo
-                    ? `?redirect=${encodeURIComponent(redirectTo)}`
-                    : ""
-                }`}
-                className="group relative p-6 border border-gray-800 hover:border-white transition-all duration-300 rounded-lg"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold">Sign In</h3>
-                    <p className="text-gray-400">
-                      Access your existing account
-                    </p>
-                  </div>
-                  <ArrowRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </Link>
-
-              <Link
-                href={`/auth/${userType}/register${
-                  redirectTo
-                    ? `?redirect=${encodeURIComponent(redirectTo)}`
-                    : ""
-                }`}
-                className="group relative p-6 border border-gray-800 hover:border-white transition-all duration-300 rounded-lg"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-semibold">Create Account</h3>
-                    <p className="text-gray-400">
-                      Register a new {userType} account
-                    </p>
-                  </div>
-                  <ArrowRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Initial landing page
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
-        <div className="text-center mb-16">
-          <h1 className="text-6xl font-bold mb-4 tracking-tight">Welcome</h1>
-          <p className="text-xl text-gray-400">
-            Choose how you'd like to continue
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-extrabold text-gray-900">
+            Welcome to Willow
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Sign in to access your account
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <button
-            onClick={() => selectUserType("member")}
-            className="group relative p-8 border border-gray-800 hover:border-white transition-all duration-300 rounded-lg"
-            disabled={isLoading}
-          >
-            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
-            <div className="relative z-10">
-              <User className="w-12 h-12 mb-4 mx-auto" />
-              <h3 className="text-2xl font-semibold mb-2">Member</h3>
-              <p className="text-gray-400">Access your personal account</p>
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4">
+            <div className="flex">
+              <div className="shrink-0">
+                <svg
+                  className="h-5 w-5 text-red-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
             </div>
-            <ArrowRight className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          </button>
+          </div>
+        )}
 
-          <button
-            onClick={() => selectUserType("organization")}
-            className="group relative p-8 border border-gray-800 hover:border-white transition-all duration-300 rounded-lg"
-            disabled={isLoading}
+        <div className="mt-8 space-y-4">
+          {/* Login Button */}
+          <Link
+            href={`/auth/login`}
+            className="group relative w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
           >
-            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
-            <div className="relative z-10">
-              <Building2 className="w-12 h-12 mb-4 mx-auto" />
-              <h3 className="text-2xl font-semibold mb-2">Organization</h3>
-              <p className="text-gray-400">Manage your business account</p>
+            <LogIn className="w-5 h-5 mr-2" />
+            Login to Your Account
+          </Link>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
             </div>
-            <ArrowRight className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          </button>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-gray-50 text-gray-500">
+                New to Willow?
+              </span>
+            </div>
+          </div>
+
+          {/* Organization Registration */}
+          <Link
+            href="/auth/org/register"
+            className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+          >
+            Register your organization
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
         </div>
       </div>
     </div>

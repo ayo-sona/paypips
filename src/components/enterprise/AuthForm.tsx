@@ -14,7 +14,7 @@ import Link from "next/link";
 import apiClient from "@/lib/apiClient";
 
 type AuthMode = "login" | "register";
-type UserType = "member" | "organization";
+type UserType = "member" | "admin" | "staff";
 
 interface AuthFormProps {
   mode: AuthMode;
@@ -35,8 +35,9 @@ export function AuthForm({ mode, userType }: AuthFormProps) {
   });
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const organizationSlug = searchParams.get("slug") || "";
   const isRegister = mode === "register";
-  const isOrg = userType === "organization";
+  const isAdmin = userType === "admin";
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -91,20 +92,20 @@ export function AuthForm({ mode, userType }: AuthFormProps) {
       const response = await apiClient.post(`/auth/${endpoint}`, {
         email: formData.email,
         password: formData.password,
-        ...(isRegister && { name: formData.name }), // Include name for registration
+        ...(isAdmin && isRegister && { organizationName: formData.name }),
+        ...(isAdmin && isRegister && { organizationEmail: formData.email }),
+        ...(isAdmin && isRegister && { firstName: formData.name }), // Include name for registration
+        ...(isAdmin && isRegister && { lastName: formData.name }), // Include name for registration
       });
-      console.log("response", response);
       const data = response.data;
       console.log("data", data);
 
       if (response.status !== 200) {
-        throw new Error(data.message || "Authentication failed");
+        throw new Error(data?.message || "Authentication failed");
       }
+      // save token to local storage
+      localStorage.setItem("token", data?.data?.access_token);
 
-      // Store the token and redirect
-      //   if (response.data.data.token) {
-      //     localStorage.setItem("token", data.data.token);
-      //   }
       router.push(redirectTo);
     } catch (err) {
       console.error("Authentication error:", err);
@@ -145,23 +146,42 @@ export function AuthForm({ mode, userType }: AuthFormProps) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {isRegister && (
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              {isOrg ? "Organization Name" : "Full Name"}
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-4 pl-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={isOrg ? "Acme Inc." : "John Doe"}
-                required
-              />
-              <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                {isOrg ? "Organization Name" : "First Name"}
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-4 pl-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={isOrg ? "Acme Inc." : "John Doe"}
+                  required
+                />
+                <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+              </div>
             </div>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                {isOrg ? "Organization Name" : "Last Name"}
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-4 pl-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={isOrg ? "Acme Inc." : "John Doe"}
+                  required
+                />
+                <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+              </div>
+            </div>
+          </>
         )}
 
         <div>

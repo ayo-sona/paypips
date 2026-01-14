@@ -1,10 +1,10 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import { QueryProvider } from '../providers/QueryProvider';
+import type { Metadata } from "next";
+import "./globals.css";
+import { QueryProvider } from "../providers/QueryProvider";
 
 export const metadata: Metadata = {
-  title: 'FundFlow - Subscription Management',
-  description: 'Manage your subscriptions and payments',
+  title: "Willow Enterprise",
+  description: "Manage your subscriptions and payments",
 };
 
 export default function RootLayout({
@@ -14,11 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html>
-    <body>
-      <QueryProvider>
-        {children}
-      </QueryProvider>
-    </body>
-  </html>
+      <body>
+        <QueryProvider>{children}</QueryProvider>
+      </body>
+    </html>
   );
 }
