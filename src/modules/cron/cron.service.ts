@@ -75,7 +75,7 @@ export class CronService {
         status: In(['active', 'trialing']),
         expires_at: LessThan(now),
       },
-      relations: ['member', 'member_plans'],
+      relations: ['member', 'plan'],
     });
 
     for (const subscription of expiredSubscriptions) {

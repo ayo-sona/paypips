@@ -38,6 +38,7 @@ async function bootstrap() {
     'https://paypips.vercel.app',
     frontendUrl,
     'http://localhost:4000',
+    'https://paypips.onrender.com',
   ];
   app.enableCors({
     origin: (
