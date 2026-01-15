@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Mail,
@@ -13,16 +14,167 @@ import {
   MOCK_MEMBERS,
   MOCK_PAYMENT_HISTORY,
 } from "../../../../lib/mockData/members";
+import { Member } from "../../../../types/member";
+import { PlanId } from "../../../../types/subscription";
 import { GrantAccessModal } from "../../../../components/enterprise/GrantAccessModal";
 import clsx from "clsx";
+
+// Store for updated members (simulates database)
+const updatedMembersCache = new Map<string, Member>();
+
+// Fetch member with auto-expire logic
+const fetchMember = async (memberId: string): Promise<Member | undefined> => {
+  // Check if we have an updated version in cache first
+  if (updatedMembersCache.has(memberId)) {
+    console.log('Loading member from cache:', memberId);
+    return updatedMembersCache.get(memberId);
+  }
+  
+  // In production, this would be an API call
+  let member = MOCK_MEMBERS.find((m) => m.id === memberId);
+  
+  if (!member) return undefined;
+  
+  // Check if expired based on current date
+  const today = new Date();
+  const expiryDate = new Date(member.subscriptionExpiryDate);
+  
+  // Auto-update status to expired if past expiry date
+  if (expiryDate < today && member.status === 'active') {
+    member = { ...member, status: 'expired' };
+  }
+  
+  return member;
+};
+
+interface GrantAccessData {
+  planId: string;
+  planName: string;
+  duration: number;
+  durationType: 'days' | 'months';
+  expiryDate: string;
+  reason: string;
+  applyMode: 'override' | 'queue';
+}
+
+// Grant access mutation
+const grantAccess = async ({ memberId, data }: { memberId: string; data: GrantAccessData }): Promise<Member> => {
+  console.log('grantAccess called:', { memberId, data });
+  
+  // TODO: Replace with actual API call
+  const member = MOCK_MEMBERS.find((m) => m.id === memberId);
+  if (!member) {
+    console.error('Member not found:', memberId);
+    throw new Error('Member not found');
+  }
+  
+  console.log('Found member:', member);
+  
+  // Check if member is expired by date
+  const isExpiredByDate = new Date(member.subscriptionExpiryDate) < new Date();
+  const shouldUseOverride = data.applyMode === 'override' || isExpiredByDate;
+  
+  // Calculate new expiry date
+  let startDate = new Date();
+  if (!shouldUseOverride && member.subscriptionExpiryDate) {
+    // Queue mode: start from current expiry date (only if not expired)
+    startDate = new Date(member.subscriptionExpiryDate);
+  }
+  // Otherwise: start from today (override mode or expired member)
+  
+  const expiryDate = new Date(startDate);
+  if (data.durationType === 'days') {
+    expiryDate.setDate(expiryDate.getDate() + data.duration);
+  } else {
+    expiryDate.setMonth(expiryDate.getMonth() + data.duration);
+  }
+  
+  console.log('Calculated dates:', {
+    shouldUseOverride,
+    isExpiredByDate,
+    startDate: startDate.toISOString(),
+    expiryDate: expiryDate.toISOString(),
+  });
+  
+  // Return updated member
+  const updatedMember = {
+    ...member,
+    subscriptionPlan: data.planId as PlanId,
+    status: 'active' as const,
+    subscriptionStartDate: shouldUseOverride ? new Date().toISOString() : member.subscriptionStartDate,
+    subscriptionExpiryDate: expiryDate.toISOString(),
+  };
+  
+  console.log('Returning updated member:', updatedMember);
+  
+  // Save to cache so fetchMember can find it
+  updatedMembersCache.set(memberId, updatedMember);
+  
+  return updatedMember;
+};
 
 export default function MemberDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showGrantAccess, setShowGrantAccess] = useState(false);
 
-  const member = MOCK_MEMBERS.find((m) => m.id === params.id);
+  // Fetch member with auto-expire logic
+  const { data: member, isLoading } = useQuery({
+    queryKey: ['member', params.id],
+    queryFn: () => fetchMember(params.id as string),
+  });
+
+  // Grant access mutation
+  const grantAccessMutation = useMutation({
+    mutationFn: grantAccess,
+    onSuccess: (updatedMember) => {
+      // Update the member in cache
+      queryClient.setQueryData(['member', params.id], updatedMember);
+      
+      // Invalidate member query to force refetch with fresh dates
+      queryClient.invalidateQueries({ queryKey: ['member', params.id] });
+      
+      // Also invalidate members list to update everywhere
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      
+      // Invalidate plans to update member count
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+    },
+  });
+
   const payments = MOCK_PAYMENT_HISTORY.filter((p) => p.memberId === params.id);
+
+  // Fetch plans from TanStack Query
+  const { data: plans = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['plans'],
+    queryFn: async () => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('enterprise_plans');
+        if (stored) {
+          return JSON.parse(stored);
+        }
+      }
+      return [];
+    },
+  });
+
+  // Calculate total paid from payment history (only successful payments)
+  const totalPaid = payments
+    .filter(p => p.status === 'success')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  // Get plan name from plan ID
+  const memberPlan = plans.find(p => p.id === member?.subscriptionPlan);
+  const planDisplayName = memberPlan?.name || member?.subscriptionPlan || 'Unknown Plan';
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+      </div>
+    );
+  }
 
   if (!member) {
     return (
@@ -51,6 +203,25 @@ export default function MemberDetailPage() {
       month: "long",
       day: "numeric",
     });
+  };
+
+  const handleGrantAccess = (data: GrantAccessData) => {
+    console.log('handleGrantAccess called with:', data);
+    console.log('Member ID:', member.id);
+    
+    grantAccessMutation.mutate(
+      { memberId: member.id, data },
+      {
+        onSuccess: (updatedMember) => {
+          console.log('Grant access successful:', updatedMember);
+          setShowGrantAccess(false);
+        },
+        onError: (error) => {
+          console.error('Grant access failed:', error);
+          alert('Failed to grant access: ' + error.message);
+        },
+      }
+    );
   };
 
   return (
@@ -126,8 +297,8 @@ export default function MemberDetailPage() {
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Award className="h-5 w-5 text-gray-400" />
-                <span className="text-gray-900 dark:text-gray-100 capitalize">
-                  {member.subscriptionPlan} Plan
+                <span className="text-gray-900 dark:text-gray-100">
+                  {planDisplayName}
                 </span>
               </div>
             </div>
@@ -138,8 +309,8 @@ export default function MemberDetailPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Total Paid
                   </p>
-                  <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    ₦{member.totalPaid.toLocaleString()}
+                  <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100" suppressHydrationWarning>
+                    ₦{totalPaid.toLocaleString()}
                   </p>
                 </div>
                 <div>
@@ -167,7 +338,7 @@ export default function MemberDetailPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Start Date
                 </p>
-                <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100" suppressHydrationWarning>
                   {formatDate(member.subscriptionStartDate)}
                 </p>
               </div>
@@ -175,7 +346,7 @@ export default function MemberDetailPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Expiry Date
                 </p>
-                <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100" suppressHydrationWarning>
                   {formatDate(member.subscriptionExpiryDate)}
                 </p>
               </div>
@@ -184,7 +355,7 @@ export default function MemberDetailPage() {
                   Billing Cycle
                 </p>
                 <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
-                  {member.billingCycle}
+                  {member.billingCycle || 'N/A'}
                 </p>
               </div>
               <div>
@@ -192,7 +363,7 @@ export default function MemberDetailPage() {
                   Payment Gateway
                 </p>
                 <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
-                  {member.gateway}
+                  {member.gateway || 'N/A'}
                 </p>
               </div>
             </div>
@@ -264,10 +435,7 @@ export default function MemberDetailPage() {
         <GrantAccessModal
           member={member}
           onClose={() => setShowGrantAccess(false)}
-          onGrant={(data) => {
-            console.log("Access granted:", data);
-            setShowGrantAccess(false);
-          }}
+          onGrant={handleGrantAccess}
         />
       )}
     </div>

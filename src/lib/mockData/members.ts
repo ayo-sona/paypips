@@ -13,7 +13,6 @@ export const MOCK_MEMBERS: Member[] = [
     lastPaymentDate: '2024-11-01',
     totalPaid: 120000,
     joinedDate: '2023-06-15',
-    gateway: 'paystack',
     billingCycle: 'monthly',
   },
   {
@@ -28,7 +27,6 @@ export const MOCK_MEMBERS: Member[] = [
     lastPaymentDate: '2024-12-15',
     totalPaid: 60000,
     joinedDate: '2024-01-20',
-    gateway: 'paystack',
     billingCycle: 'monthly',
   },
   {
@@ -43,7 +41,6 @@ export const MOCK_MEMBERS: Member[] = [
     lastPaymentDate: '2024-08-01',
     totalPaid: 30000,
     joinedDate: '2024-08-01',
-    gateway: 'paystack',
     billingCycle: 'monthly',
   },
   {
@@ -58,7 +55,6 @@ export const MOCK_MEMBERS: Member[] = [
     lastPaymentDate: '2025-01-01',
     totalPaid: 240000,
     joinedDate: '2022-03-10',
-    gateway: 'stripe',
     billingCycle: 'annually',
   },
   {
@@ -73,7 +69,6 @@ export const MOCK_MEMBERS: Member[] = [
     lastPaymentDate: '2024-06-01',
     totalPaid: 45000,
     joinedDate: '2024-06-01',
-    gateway: 'paystack',
     billingCycle: 'monthly',
   },
   {
@@ -88,7 +83,6 @@ export const MOCK_MEMBERS: Member[] = [
     lastPaymentDate: '2024-10-01',
     totalPaid: 500000,
     joinedDate: '2021-05-20',
-    gateway: 'stripe',
     billingCycle: 'annually',
   },
   {
@@ -103,7 +97,6 @@ export const MOCK_MEMBERS: Member[] = [
     lastPaymentDate: '2025-01-01',
     totalPaid: 45000,
     joinedDate: '2025-01-01',
-    gateway: 'paystack',
     billingCycle: 'monthly',
   },
   {
@@ -118,7 +111,6 @@ export const MOCK_MEMBERS: Member[] = [
     lastPaymentDate: '2024-09-01',
     totalPaid: 80000,
     joinedDate: '2024-09-01',
-    gateway: 'paystack',
     billingCycle: 'monthly',
   },
 ];
