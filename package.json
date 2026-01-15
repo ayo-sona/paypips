@@ -9,13 +9,15 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@heroui/react": "3.0.0-beta.3",
-    "@heroui/styles": "3.0.0-beta.3",
+    "@heroui/react": "^2.8.7",
+    "@heroui/theme": "^2.4.25",
+    "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "^5.90.16",
     "@tanstack/react-query-devtools": "^5.91.2",
     "axios": "^1.13.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.26.2",
     "lucide-react": "^0.562.0",
     "motion": "^12.25.0",
     "next": "16.1.1",

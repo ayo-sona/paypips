@@ -12,8 +12,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+    email: "levi@life.com",
+    password: "Password123",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,7 +34,7 @@ export default function LoginPage() {
 
       if (response.data?.data?.access_token) {
         localStorage.setItem("access_token", response.data.data.access_token);
-        router.push("/dashboard");
+        router.push("/select");
       }
     } catch (err: any) {
       console.error("Login error:", err);

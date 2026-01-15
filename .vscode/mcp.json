@@ -2,9 +2,14 @@
   "servers": {
     "shadcn": {
       "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "hero-ui": {
+      "command": "npx",
       "args": [
-        "shadcn@latest",
-        "mcp"
+        "@heroui/mcp@latest",
+        "--registry",
+        "https://registry.windsurf.dev"
       ]
     }
   }
