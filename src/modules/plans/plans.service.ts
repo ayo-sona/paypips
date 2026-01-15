@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Plan } from '../../database/entities/plan.entity';
+import { MemberPlan } from '../../database/entities/member-plan.entity';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
@@ -13,25 +13,25 @@ import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 @Injectable()
 export class PlansService {
   constructor(
-    @InjectRepository(Plan)
-    private planRepository: Repository<Plan>,
+    @InjectRepository(MemberPlan)
+    private memberPlanRepository: Repository<MemberPlan>,
   ) {}
 
-  async create(organizationId: string, createPlanDto: CreatePlanDto) {
-    const plan = this.planRepository.create({
+  async createMemberPlan(organizationId: string, createPlanDto: CreatePlanDto) {
+    const plan = this.memberPlanRepository.create({
       organization_id: organizationId,
       name: createPlanDto.name,
       description: createPlanDto.description,
-      amount: createPlanDto.amount,
+      price: createPlanDto.amount,
       currency: createPlanDto.currency || 'NGN',
       interval: createPlanDto.interval,
       interval_count: createPlanDto.intervalCount || 1,
-      trial_period_days: createPlanDto.trialPeriodDays || 0,
       features: createPlanDto.features || [],
       is_active: true,
+      //   trial_period_days: createPlanDto.trialPeriodDays || 0,
     });
 
-    const saved = await this.planRepository.save(plan);
+    const saved = await this.memberPlanRepository.save(plan);
 
     return {
       message: 'Plan created successfully',
@@ -39,11 +39,14 @@ export class PlansService {
     };
   }
 
-  async findAll(organizationId: string, paginationDto: PaginationDto) {
+  async findAllMemberPlans(
+    organizationId: string,
+    paginationDto: PaginationDto,
+  ) {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [plans, total] = await this.planRepository.findAndCount({
+    const [plans, total] = await this.memberPlanRepository.findAndCount({
       where: { organization_id: organizationId },
       order: { created_at: 'DESC' },
       skip,
@@ -56,13 +59,13 @@ export class PlansService {
     };
   }
 
-  async findActive(organizationId: string) {
-    const plans = await this.planRepository.find({
+  async findActiveMemberPlans(organizationId: string) {
+    const plans = await this.memberPlanRepository.find({
       where: {
         organization_id: organizationId,
         is_active: true,
       },
-      order: { amount: 'ASC' },
+      order: { price: 'ASC' },
     });
 
     return {
@@ -71,8 +74,8 @@ export class PlansService {
     };
   }
 
-  async findOne(organizationId: string, planId: string) {
-    const plan = await this.planRepository.findOne({
+  async findMemberPlan(organizationId: string, planId: string) {
+    const plan = await this.memberPlanRepository.findOne({
       where: {
         id: planId,
         organization_id: organizationId,
@@ -97,12 +100,12 @@ export class PlansService {
     };
   }
 
-  async update(
+  async updateMemberPlan(
     organizationId: string,
     planId: string,
     updatePlanDto: UpdatePlanDto,
   ) {
-    const plan = await this.planRepository.findOne({
+    const plan = await this.memberPlanRepository.findOne({
       where: {
         id: planId,
         organization_id: organizationId,
@@ -123,7 +126,7 @@ export class PlansService {
     if (hasActiveSubscriptions) {
       if (
         updatePlanDto.amount !== undefined &&
-        updatePlanDto.amount !== plan.amount
+        updatePlanDto.amount !== plan.price
       ) {
         throw new BadRequestException(
           'Cannot change plan amount while there are active subscriptions. Create a new plan instead.',
@@ -138,7 +141,7 @@ export class PlansService {
     }
 
     Object.assign(plan, updatePlanDto);
-    const updated = await this.planRepository.save(plan);
+    const updated = await this.memberPlanRepository.save(plan);
 
     return {
       message: 'Plan updated successfully',
@@ -146,8 +149,8 @@ export class PlansService {
     };
   }
 
-  async toggleActive(organizationId: string, planId: string) {
-    const plan = await this.planRepository.findOne({
+  async toggleActiveMemberPlan(organizationId: string, planId: string) {
+    const plan = await this.memberPlanRepository.findOne({
       where: {
         id: planId,
         organization_id: organizationId,
@@ -173,7 +176,7 @@ export class PlansService {
     }
 
     plan.is_active = !plan.is_active;
-    await this.planRepository.save(plan);
+    await this.memberPlanRepository.save(plan);
 
     return {
       message: `Plan ${plan.is_active ? 'activated' : 'deactivated'} successfully`,
@@ -181,8 +184,8 @@ export class PlansService {
     };
   }
 
-  async delete(organizationId: string, planId: string) {
-    const plan = await this.planRepository.findOne({
+  async deleteMemberPlan(organizationId: string, planId: string) {
+    const plan = await this.memberPlanRepository.findOne({
       where: {
         id: planId,
         organization_id: organizationId,
@@ -201,7 +204,7 @@ export class PlansService {
       );
     }
 
-    await this.planRepository.remove(plan);
+    await this.memberPlanRepository.remove(plan);
 
     return {
       message: 'Plan deleted successfully',

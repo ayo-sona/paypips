@@ -37,7 +37,7 @@ export class PlansController {
     @CurrentOrganization() organizationId: string,
     @Body() createPlanDto: CreatePlanDto,
   ) {
-    return this.plansService.create(organizationId, createPlanDto);
+    return this.plansService.createMemberPlan(organizationId, createPlanDto);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -65,7 +65,7 @@ export class PlansController {
     @CurrentOrganization() organizationId: string,
     @Query() paginationDto: PaginationDto,
   ) {
-    return this.plansService.findAll(organizationId, paginationDto);
+    return this.plansService.findAllMemberPlans(organizationId, paginationDto);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -78,7 +78,7 @@ export class PlansController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get('active')
   findActive(@CurrentOrganization() organizationId: string) {
-    return this.plansService.findActive(organizationId);
+    return this.plansService.findActiveMemberPlans(organizationId);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -95,7 +95,7 @@ export class PlansController {
     @CurrentOrganization() organizationId: string,
     @Param('id') id: string,
   ) {
-    return this.plansService.findOne(organizationId, id);
+    return this.plansService.findMemberPlan(organizationId, id);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -114,7 +114,11 @@ export class PlansController {
     @Param('id') id: string,
     @Body() updatePlanDto: UpdatePlanDto,
   ) {
-    return this.plansService.update(organizationId, id, updatePlanDto);
+    return this.plansService.updateMemberPlan(
+      organizationId,
+      id,
+      updatePlanDto,
+    );
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -132,7 +136,7 @@ export class PlansController {
     @CurrentOrganization() organizationId: string,
     @Param('id') id: string,
   ) {
-    return this.plansService.toggleActive(organizationId, id);
+    return this.plansService.toggleActiveMemberPlan(organizationId, id);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -146,6 +150,6 @@ export class PlansController {
     @CurrentOrganization() organizationId: string,
     @Param('id') id: string,
   ) {
-    return this.plansService.delete(organizationId, id);
+    return this.plansService.deleteMemberPlan(organizationId, id);
   }
 }

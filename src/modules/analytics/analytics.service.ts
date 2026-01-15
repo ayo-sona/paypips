@@ -1,11 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThan, MoreThan } from 'typeorm';
-import { Subscription } from '../../database/entities/subscription.entity';
+import {
+  MemberSubscription,
+  SubscriptionStatus,
+} from '../../database/entities/member-subscription.entity';
 import { Invoice } from '../../database/entities/invoice.entity';
 import { Payment } from '../../database/entities/payment.entity';
 import { Member } from '../../database/entities/member.entity';
-import { Plan } from '../../database/entities/plan.entity';
+import { MemberPlan } from '../../database/entities/member-plan.entity';
 import {
   MRRData,
   ChurnData,
@@ -21,16 +24,20 @@ export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
 
   constructor(
-    @InjectRepository(Subscription)
-    private subscriptionRepository: Repository<Subscription>,
+    @InjectRepository(MemberSubscription)
+    private memberSubscriptionRepository: Repository<MemberSubscription>,
+
     @InjectRepository(Invoice)
     private invoiceRepository: Repository<Invoice>,
+
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
+
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
-    @InjectRepository(Plan)
-    private planRepository: Repository<Plan>,
+
+    @InjectRepository(MemberPlan)
+    private memberPlanRepository: Repository<MemberPlan>,
   ) {}
 
   // ============================================
@@ -68,10 +75,10 @@ export class AnalyticsService {
   // ============================================
   async calculateMRR(organizationId: string): Promise<MRRData> {
     // Get active monthly subscriptions
-    const activeSubscriptions = await this.subscriptionRepository.find({
+    const activeSubscriptions = await this.memberSubscriptionRepository.find({
       where: {
         organization_id: organizationId,
-        status: 'active',
+        status: SubscriptionStatus.ACTIVE,
       },
       relations: ['plan'],
     });
@@ -80,7 +87,7 @@ export class AnalyticsService {
     let currentMRR = 0;
     for (const subscription of activeSubscriptions) {
       const monthlyAmount = this.normalizeToMonthly(
-        subscription.plan.amount,
+        subscription.plan.price,
         subscription.plan.interval,
         subscription.plan.interval_count,
       );
@@ -91,18 +98,22 @@ export class AnalyticsService {
     const lastMonth = new Date();
     lastMonth.setMonth(lastMonth.getMonth() - 1);
 
-    const previousSubscriptions = await this.subscriptionRepository
-      .createQueryBuilder('subscription')
-      .leftJoinAndSelect('subscription.plan', 'plan')
-      .where('subscription.organization_id = :orgId', { orgId: organizationId })
-      .andWhere('subscription.status = :status', { status: 'active' })
-      .andWhere('subscription.created_at <= :date', { date: lastMonth })
+    const previousSubscriptions = await this.memberSubscriptionRepository
+      .createQueryBuilder('member_subscriptions')
+      .leftJoinAndSelect('member_subscriptions.plan', 'member_plans')
+      .where('member_subscriptions.organization_id = :orgId', {
+        orgId: organizationId,
+      })
+      .andWhere('member_subscriptions.status = :status', {
+        status: SubscriptionStatus.ACTIVE,
+      })
+      .andWhere('member_subscriptions.created_at <= :date', { date: lastMonth })
       .getMany();
 
     let previousMRR = 0;
     for (const subscription of previousSubscriptions) {
       const monthlyAmount = this.normalizeToMonthly(
-        subscription.plan.amount,
+        subscription.plan.price,
         subscription.plan.interval,
         subscription.plan.interval_count,
       );
@@ -132,16 +143,17 @@ export class AnalyticsService {
     // Get members at start of period
     const membersAtStart = await this.memberRepository.count({
       where: {
-        organization_id: organizationId,
         created_at: LessThan(startDate),
+        organization_user: { organization_id: organizationId },
       },
+      relations: ['organization_users'],
     });
 
     // Get churned subscriptions in period
-    const churnedSubscriptions = await this.subscriptionRepository.count({
+    const churnedSubscriptions = await this.memberSubscriptionRepository.count({
       where: {
         organization_id: organizationId,
-        status: 'canceled',
+        status: SubscriptionStatus.CANCELED,
         canceled_at: Between(startDate, endDate),
       },
     });
@@ -212,7 +224,7 @@ export class AnalyticsService {
     // Average transaction value
     const transactionCount = await this.paymentRepository.count({
       where: {
-        organization_id: organizationId,
+        payer_org_id: organizationId,
         status: 'success',
         created_at: Between(startDate, endDate),
       },
@@ -240,23 +252,25 @@ export class AnalyticsService {
     // New members in period
     const newMembers = await this.memberRepository.count({
       where: {
-        organization_id: organizationId,
         created_at: Between(startDate, endDate),
+        organization_user: { organization_id: organizationId },
       },
+      relations: ['organization_users'],
     });
 
     // Churned members (canceled subscriptions)
-    const churnedMembers = await this.subscriptionRepository.count({
+    const churnedMembers = await this.memberSubscriptionRepository.count({
       where: {
         organization_id: organizationId,
-        status: 'canceled',
+        status: SubscriptionStatus.CANCELED,
         canceled_at: Between(startDate, endDate),
       },
     });
 
     // Total members
     const totalMembers = await this.memberRepository.count({
-      where: { organization_id: organizationId },
+      where: { organization_user: { organization_id: organizationId } },
+      relations: ['organization_users'],
     });
 
     return {
@@ -278,27 +292,27 @@ export class AnalyticsService {
     const [total, successful, failed, pending] = await Promise.all([
       this.paymentRepository.count({
         where: {
-          organization_id: organizationId,
+          payer_org_id: organizationId,
           created_at: Between(startDate, endDate),
         },
       }),
       this.paymentRepository.count({
         where: {
-          organization_id: organizationId,
+          payer_org_id: organizationId,
           status: 'success',
           created_at: Between(startDate, endDate),
         },
       }),
       this.paymentRepository.count({
         where: {
-          organization_id: organizationId,
+          payer_org_id: organizationId,
           status: 'failed',
           created_at: Between(startDate, endDate),
         },
       }),
       this.paymentRepository.count({
         where: {
-          organization_id: organizationId,
+          payer_org_id: organizationId,
           status: 'pending',
           created_at: Between(startDate, endDate),
         },
@@ -324,30 +338,26 @@ export class AnalyticsService {
     startDate: Date,
     endDate: Date,
   ) {
-    const [total, active, trialing, expired, canceled, paused] =
-      await Promise.all([
-        this.subscriptionRepository.count({
-          where: { organization_id: organizationId },
-        }),
-        this.subscriptionRepository.count({
-          where: { organization_id: organizationId, status: 'active' },
-        }),
-        this.subscriptionRepository.count({
-          where: { organization_id: organizationId, status: 'trialing' },
-        }),
-        this.subscriptionRepository.count({
-          where: { organization_id: organizationId, status: 'expired' },
-        }),
-        this.subscriptionRepository.count({
-          where: { organization_id: organizationId, status: 'canceled' },
-        }),
-        this.subscriptionRepository.count({
-          where: { organization_id: organizationId, status: 'paused' },
-        }),
-      ]);
+    const [total, active, expired, canceled, paused] = await Promise.all([
+      this.memberSubscriptionRepository.count({
+        where: { organization_id: organizationId },
+      }),
+      this.memberSubscriptionRepository.count({
+        where: { organization_id: organizationId, status: 'active' },
+      }),
+      this.memberSubscriptionRepository.count({
+        where: { organization_id: organizationId, status: 'expired' },
+      }),
+      this.memberSubscriptionRepository.count({
+        where: { organization_id: organizationId, status: 'canceled' },
+      }),
+      this.memberSubscriptionRepository.count({
+        where: { organization_id: organizationId, status: 'paused' },
+      }),
+    ]);
 
     // New subscriptions in period
-    const newSubscriptions = await this.subscriptionRepository.count({
+    const newSubscriptions = await this.memberSubscriptionRepository.count({
       where: {
         organization_id: organizationId,
         created_at: Between(startDate, endDate),
@@ -357,7 +367,6 @@ export class AnalyticsService {
     return {
       total_subscriptions: total,
       active_subscriptions: active,
-      trialing_subscriptions: trialing,
       expired_subscriptions: expired,
       canceled_subscriptions: canceled,
       paused_subscriptions: paused,
@@ -391,12 +400,12 @@ export class AnalyticsService {
         this.paymentRepository
           .createQueryBuilder('payment')
           .select('COALESCE(SUM(amount), 0)', 'total')
-          .where('organization_id = :orgId', { orgId: organizationId })
+          .where('payer_org_id = :orgId', { orgId: organizationId })
           .andWhere('status = :status', { status: 'success' })
           .andWhere('created_at >= :start', { start: date })
           .andWhere('created_at < :end', { end: nextDate })
           .getRawOne(),
-        this.subscriptionRepository.count({
+        this.memberSubscriptionRepository.count({
           where: {
             organization_id: organizationId,
             created_at: Between(date, nextDate),
@@ -404,7 +413,7 @@ export class AnalyticsService {
         }),
         this.memberRepository.count({
           where: {
-            organization_id: organizationId,
+            organization_user: { organization_id: organizationId },
             created_at: Between(date, nextDate),
           },
         }),
@@ -427,7 +436,7 @@ export class AnalyticsService {
   async getPlanPerformance(
     organizationId: string,
   ): Promise<PlanPerformanceData[]> {
-    const plans = await this.planRepository.find({
+    const plans = await this.memberPlanRepository.find({
       where: { organization_id: organizationId },
       relations: ['subscriptions'],
     });
@@ -436,16 +445,17 @@ export class AnalyticsService {
 
     for (const plan of plans) {
       const activeSubscriptions =
-        plan.subscriptions?.filter((sub) => sub.status === 'active').length ||
-        0;
+        plan.subscriptions?.filter(
+          (sub) => sub.status === SubscriptionStatus.ACTIVE,
+        ).length || 0;
 
       // Calculate revenue from this plan
       const revenueResult = await this.paymentRepository
-        .createQueryBuilder('payment')
-        .innerJoin('payment.invoice', 'invoice')
-        .innerJoin('invoice.subscription', 'subscription')
+        .createQueryBuilder('payments')
+        .innerJoin('payment.invoice', 'invoices')
+        .innerJoin('invoice.member_subscription', 'member_subscriptions')
         .select('COALESCE(SUM(payment.amount), 0)', 'total')
-        .where('subscription.plan_id = :planId', { planId: plan.id })
+        .where('member_subscriptions.plan_id = :planId', { planId: plan.id })
         .andWhere('payment.status = :status', { status: 'success' })
         .getRawOne();
 
@@ -475,19 +485,19 @@ export class AnalyticsService {
   async getTopMembers(organizationId: string, limit: number = 10) {
     const topMembers = await this.paymentRepository
       .createQueryBuilder('payment')
-      .select('payment.member_id', 'member_id')
-      .addSelect('member.first_name', 'first_name')
-      .addSelect('member.last_name', 'last_name')
-      .addSelect('member.email', 'email')
+      .select('payment.payer_user_id', 'member_id')
+      .addSelect('payer_user.first_name', 'first_name')
+      .addSelect('payer_user.last_name', 'last_name')
+      .addSelect('payer_user.email', 'email')
       .addSelect('COALESCE(SUM(payment.amount), 0)', 'total_spent')
       .addSelect('COUNT(payment.id)', 'payment_count')
-      .innerJoin('payment.member', 'member')
-      .where('payment.organization_id = :orgId', { orgId: organizationId })
+      .innerJoin('payment.payer_user', 'user')
+      .where('payment.payer_org_id = :orgId', { orgId: organizationId })
       .andWhere('payment.status = :status', { status: 'success' })
-      .groupBy('payment.member_id')
-      .addGroupBy('member.first_name')
-      .addGroupBy('member.last_name')
-      .addGroupBy('member.email')
+      .groupBy('payment.payer_user_id')
+      .addGroupBy('payer_user_id.first_name')
+      .addGroupBy('payer_user_id.last_name')
+      .addGroupBy('payer_user_id.email')
       .orderBy('total_spent', 'DESC')
       .limit(limit)
       .getRawMany();

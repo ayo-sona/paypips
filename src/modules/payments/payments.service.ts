@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Payment } from '../../database/entities/payment.entity';
-import { Invoice } from '../../database/entities/invoice.entity';
+import { Invoice, InvoiceStatus } from '../../database/entities/invoice.entity';
 import { Member } from '../../database/entities/member.entity';
 import { PaystackService } from './paystack.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -22,10 +22,13 @@ export class PaymentsService {
   constructor(
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
+
     @InjectRepository(Invoice)
     private invoiceRepository: Repository<Invoice>,
+
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
+
     private paystackService: PaystackService,
     private configService: ConfigService,
     private notificationsService: NotificationsService,
@@ -39,9 +42,9 @@ export class PaymentsService {
     const invoice = await this.invoiceRepository.findOne({
       where: {
         id: initializePaymentDto.invoiceId,
-        organization_id: organizationId,
+        issuer_org_id: organizationId,
       },
-      relations: ['member'],
+      relations: ['users'],
     });
 
     if (!invoice) {
@@ -57,9 +60,9 @@ export class PaymentsService {
 
     // Create payment record
     const payment = this.paymentRepository.create({
-      organization_id: organizationId,
+      payer_org_id: organizationId,
       invoice_id: invoice.id,
-      member_id: invoice.member_id,
+      payer_user_id: invoice.billed_user_id,
       amount: invoice.amount,
       currency: invoice.currency,
       provider: 'paystack',
@@ -75,16 +78,16 @@ export class PaymentsService {
 
     // Initialize Paystack transaction
     const amountInKobo = this.paystackService.convertToKobo(invoice.amount);
-    const callbackUrl = `${this.configService.get('frontend.url')}/payment/callback`;
+    const callbackUrl = `${this.configService.get('frontend.url')}/dashboard`;
 
     const paystackResponse = await this.paystackService.initializeTransaction(
-      invoice.member.email,
+      invoice.billed_user.email,
       amountInKobo,
       reference,
       {
         payment_id: savedPayment.id,
         invoice_id: invoice.id,
-        member_name: `${invoice.member.first_name} ${invoice.member.last_name}`,
+        payer_name: `${invoice.billed_user.first_name} ${invoice.billed_user.last_name}`,
         ...initializePaymentDto.metadata,
       },
       callbackUrl,
@@ -114,9 +117,9 @@ export class PaymentsService {
     const payment = await this.paymentRepository.findOne({
       where: {
         provider_reference: reference,
-        organization_id: organizationId,
+        payer_org_id: organizationId,
       },
-      relations: ['invoice', 'member'],
+      relations: ['invoices', 'users'],
     });
 
     if (!payment) {
@@ -144,7 +147,7 @@ export class PaymentsService {
 
       // Update invoice status
       if (payment.invoice) {
-        payment.invoice.status = 'paid';
+        payment.invoice.status = InvoiceStatus.PAID;
         payment.invoice.paid_at = new Date();
         await this.invoiceRepository.save(payment.invoice);
       }
@@ -184,14 +187,14 @@ export class PaymentsService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const whereCondition: any = { organization_id: organizationId };
+    const whereCondition: any = { payer_org_id: organizationId };
     if (status) {
       whereCondition.status = status;
     }
 
     const [payments, total] = await this.paymentRepository.findAndCount({
       where: whereCondition,
-      relations: ['member', 'invoice'],
+      relations: ['users', 'invoices'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,
@@ -207,9 +210,9 @@ export class PaymentsService {
     const payment = await this.paymentRepository.findOne({
       where: {
         id: paymentId,
-        organization_id: organizationId,
+        payer_org_id: organizationId,
       },
-      relations: ['member', 'invoice'],
+      relations: ['users', 'invoices'],
     });
 
     if (!payment) {
@@ -232,10 +235,10 @@ export class PaymentsService {
 
     const [payments, total] = await this.paymentRepository.findAndCount({
       where: {
-        organization_id: organizationId,
-        member_id: memberId,
+        payer_org_id: organizationId,
+        payer_user_id: memberId,
       },
-      relations: ['invoice'],
+      relations: ['invoices'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,
@@ -247,22 +250,22 @@ export class PaymentsService {
     };
   }
 
-  async getPaymentStats(organizationId: string) {
+  async getMemberPaymentStats(organizationId: string) {
     const [totalPayments, successfulPayments, failedPayments, totalRevenue] =
       await Promise.all([
         this.paymentRepository.count({
-          where: { organization_id: organizationId },
+          where: { payer_org_id: organizationId },
         }),
         this.paymentRepository.count({
-          where: { organization_id: organizationId, status: 'success' },
+          where: { payer_org_id: organizationId, status: 'success' },
         }),
         this.paymentRepository.count({
-          where: { organization_id: organizationId, status: 'failed' },
+          where: { payer_org_id: organizationId, status: 'failed' },
         }),
         this.paymentRepository.query(
-          `SELECT COALESCE(SUM(amount), 0) as total 
-           FROM payments 
-           WHERE organization_id = $1 AND status = 'success'`,
+          `SELECT COALESCE(SUM(amount), 0) as total
+           FROM payments
+           WHERE payer_org_id = $1 AND status = 'success'`,
           [organizationId],
         ),
       ]);

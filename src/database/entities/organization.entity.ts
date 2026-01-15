@@ -1,4 +1,3 @@
-// src/database/entities/organization.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -6,12 +5,14 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
-import { User } from './user.entity';
-import { Member } from './member.entity';
-import { Plan } from './plan.entity';
-import { Subscription } from './subscription.entity';
 import { ApiProperty } from '@nestjs/swagger';
+import { OrganizationUser } from './organization-user.entity';
+import { OrganizationSubscription } from './organization-subscription.entity';
+import { MemberPlan } from './member-plan.entity';
+import { OrganizationInvite } from './organization-invite.entity';
+import { MemberSubscription } from './member-subscription.entity';
 
 @Entity('organizations')
 export class Organization {
@@ -26,29 +27,21 @@ export class Organization {
     description: 'Organization Name',
     example: 'Life Fitness',
   })
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'text' })
   name: string;
+
+  @Column({ type: 'text', unique: true })
+  slug: string;
 
   @ApiProperty({
     description: 'john@example.com',
     example: 'john@example.com',
   })
-  @Column({ type: 'varchar', length: 255, unique: true })
+  @Column({ type: 'text', unique: true })
   email: string;
 
-  @ApiProperty({
-    description: 'Subscription Plans',
-    example: 'Basic Plan',
-  })
-  @Column({ type: 'varchar', length: 50, default: 'free' })
-  subscription_plan: string;
-
-  @ApiProperty({
-    description: 'Subscription Status',
-    example: 'active',
-  })
-  @Column({ type: 'varchar', length: 50, default: 'active' })
-  subscription_status: string;
+  @Column({ type: 'text', default: 'active' })
+  status: string;
 
   @ApiProperty({
     description: 'Trial Ends At',
@@ -71,27 +64,18 @@ export class Organization {
   @UpdateDateColumn({ type: 'timestamp with time zone' })
   updated_at: Date;
 
-  @ApiProperty({
-    description: 'User object',
-  })
-  @OneToMany(() => User, (user) => user.organization)
-  users: User[];
+  @OneToMany(() => OrganizationUser, (orgUser) => orgUser.organization)
+  organization_users: OrganizationUser[];
 
-  @ApiProperty({
-    description: 'Member object',
-  })
-  @OneToMany(() => Member, (member) => member.organization)
-  members: Member[];
+  @OneToOne(() => OrganizationSubscription, (sub) => sub.organization)
+  subscription: OrganizationSubscription;
 
-  @ApiProperty({
-    description: 'Plan object',
-  })
-  @OneToMany(() => Plan, (plan) => plan.organization)
-  plans: Plan[];
+  @OneToMany(() => MemberPlan, (plan) => plan.organization)
+  member_plans: MemberPlan[];
 
-  @ApiProperty({
-    description: 'Subscription object',
-  })
-  @OneToMany(() => Subscription, (subscription) => subscription.organization)
-  subscriptions: Subscription[];
+  @OneToMany(() => MemberSubscription, (sub) => sub.organization)
+  memberSubscriptions: MemberSubscription[];
+
+  @OneToMany(() => OrganizationInvite, (invite) => invite.organization)
+  invitations: OrganizationInvite[];
 }

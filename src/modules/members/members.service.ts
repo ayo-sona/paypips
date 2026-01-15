@@ -2,158 +2,103 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Member } from '../../database/entities/member.entity';
-import { CreateCustomerDto } from './dto/create-customer.dto';
-import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
+import { OrganizationUser } from '../../database/entities/organization-user.entity';
+import { UpdateMemberDto } from './dto/update-member.dto';
 
 @Injectable()
 export class MembersService {
   constructor(
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
+    @InjectRepository(OrganizationUser)
+    private orgUserRepository: Repository<OrganizationUser>,
   ) {}
 
-  async create(organizationId: string, createCustomerDto: CreateCustomerDto) {
-    // Check if customer already exists in this organization
-    const existing = await this.memberRepository.findOne({
-      where: {
-        organization_id: organizationId,
-        email: createCustomerDto.email,
-      },
+  async findAll(organizationId: string, search?: string): Promise<Member[]> {
+    // First get all org user IDs for this organization
+    const orgUsers = await this.orgUserRepository.find({
+      where: { organization_id: organizationId },
+      select: ['id'],
     });
 
-    if (existing) {
-      throw new ConflictException(
-        'Customer with this email already exists in your organization',
+    const orgUserIds = orgUsers.map((ou) => ou.id);
+
+    if (orgUserIds.length === 0) {
+      return [];
+    }
+
+    const query = this.memberRepository
+      .createQueryBuilder('member')
+      .where('member.organization_user_id IN (:...orgUserIds)', { orgUserIds })
+      .leftJoinAndSelect('member.organization_user', 'organization_user')
+      .leftJoinAndSelect('organization_user.user', 'user');
+
+    if (search) {
+      query.andWhere(
+        '(member.emergency_contact_name ILIKE :search OR user.email ILIKE :search OR user.first_name ILIKE :search OR user.last_name ILIKE :search)',
+        {
+          search: `%${search}%`,
+        },
       );
     }
 
-    const customer = this.memberRepository.create({
-      organization_id: organizationId,
-      email: createCustomerDto.email,
-      first_name: createCustomerDto.firstName,
-      last_name: createCustomerDto.lastName,
-      phone: createCustomerDto.phone,
-      metadata: createCustomerDto.metadata || {},
-    });
-
-    const saved = await this.memberRepository.save(customer);
-
-    return {
-      message: 'Customer created successfully',
-      data: saved,
-    };
+    return query.getMany();
   }
 
-  async findAll(
-    organizationId: string,
-    paginationDto: PaginationDto,
-    search?: string,
-  ) {
-    const { page = 1, limit = 10 } = paginationDto;
-    const skip = (page - 1) * limit;
-
-    const whereCondition: any = { organization_id: organizationId };
-
-    // Add search if provided
-    if (search) {
-      whereCondition.email = ILike(`%${search}%`);
-    }
-
-    const [members, total] = await this.memberRepository.findAndCount({
-      where: whereCondition,
-      order: { created_at: 'DESC' },
-      skip,
-      take: limit,
-    });
-
-    return {
-      message: 'Members retrieved successfully',
-      ...paginate(members, total, page, limit),
-    };
-  }
-
-  async findOne(organizationId: string, memberId: string) {
-    const member = await this.memberRepository.findOne({
-      where: {
-        id: memberId,
-        organization_id: organizationId,
-      },
-      relations: ['subscriptions', 'subscriptions.plan'],
-    });
+  async findOne(organizationId: string, id: string): Promise<Member> {
+    // First verify the org user belongs to the organization
+    const member = await this.memberRepository
+      .createQueryBuilder('member')
+      .innerJoin(
+        'member.organization_user',
+        'organization_user',
+        'organization_user.organization_id = :organizationId',
+        { organizationId },
+      )
+      .leftJoinAndSelect('member.organization_user', 'organization_user')
+      .leftJoinAndSelect('organization_user.user', 'user')
+      .where('member.id = :id', { id })
+      .getOne();
 
     if (!member) {
       throw new NotFoundException('Member not found');
     }
 
-    return {
-      message: 'Member retrieved successfully',
-      data: member,
-    };
+    return member;
   }
 
   async update(
     organizationId: string,
-    memberId: string,
-    updateCustomerDto: UpdateCustomerDto,
-  ) {
-    const member = await this.memberRepository.findOne({
-      where: {
-        id: memberId,
-        organization_id: organizationId,
-      },
+    id: string,
+    updateDto: UpdateMemberDto,
+  ): Promise<Member> {
+    const member = await this.findOne(organizationId, id);
+
+    // Only update allowed fields
+    const updated = this.memberRepository.merge(member, {
+      date_of_birth: updateDto.date_of_birth,
+      address: updateDto.address,
+      emergency_contact_name: updateDto.emergency_contact_name,
+      emergency_contact_phone: updateDto.emergency_contact_phone,
+      medical_notes: updateDto.medical_notes,
+      metadata: updateDto.metadata,
     });
 
-    if (!member) {
-      throw new NotFoundException('Member not found');
-    }
-
-    // Check if email is being changed and is unique
-    if (updateCustomerDto.email && updateCustomerDto.email !== member.email) {
-      const existing = await this.memberRepository.findOne({
-        where: {
-          organization_id: organizationId,
-          email: updateCustomerDto.email,
-        },
-      });
-
-      if (existing) {
-        throw new ConflictException('Email already in use by another member');
-      }
-    }
-
-    // Update fields
-    if (updateCustomerDto.email) member.email = updateCustomerDto.email;
-    if (updateCustomerDto.firstName)
-      member.first_name = updateCustomerDto.firstName;
-    if (updateCustomerDto.lastName)
-      member.last_name = updateCustomerDto.lastName;
-    if (updateCustomerDto.phone !== undefined)
-      member.phone = updateCustomerDto.phone;
-    if (updateCustomerDto.metadata) {
-      member.metadata = {
-        ...member.metadata,
-        ...updateCustomerDto.metadata,
-      };
-    }
-
-    const updated = await this.memberRepository.save(member);
-
-    return {
-      message: 'Member updated successfully',
-      data: updated,
-    };
+    return this.memberRepository.save(updated);
   }
 
   async delete(organizationId: string, memberId: string) {
     const member = await this.memberRepository.findOne({
       where: {
         id: memberId,
-        organization_id: organizationId,
+        organization_user: {
+          organization_id: organizationId,
+        },
       },
       relations: ['subscriptions'],
     });
@@ -184,7 +129,9 @@ export class MembersService {
     const member = await this.memberRepository.findOne({
       where: {
         id: memberId,
-        organization_id: organizationId,
+        organization_user: {
+          organization_id: organizationId,
+        },
       },
     });
 
@@ -195,23 +142,23 @@ export class MembersService {
     // Get subscription stats
     const [subscriptions, invoices, totalPaid] = await Promise.all([
       this.memberRepository.query(
-        `SELECT COUNT(*) as count, status 
-         FROM subscriptions 
-         WHERE member_id = $1 
+        `SELECT COUNT(*) as count, status
+         FROM member_subscriptions
+         WHERE member_id = $1
          GROUP BY status`,
         [memberId],
       ),
       this.memberRepository.query(
-        `SELECT COUNT(*) as count, status 
-         FROM invoices 
-         WHERE member_id = $1 
+        `SELECT COUNT(*) as count, status
+         FROM invoices
+         WHERE billed_user_id = $1
          GROUP BY status`,
         [memberId],
       ),
       this.memberRepository.query(
-        `SELECT COALESCE(SUM(amount), 0) as total 
-         FROM payments 
-         WHERE member_id = $1 AND status = 'success'`,
+        `SELECT COALESCE(SUM(amount), 0) as total
+         FROM payments
+         WHERE payer_user_id = $1 AND status = 'success'`,
         [memberId],
       ),
     ]);

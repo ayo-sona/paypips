@@ -3,27 +3,37 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { Organization } from '../../database/entities/organization.entity';
-import { User } from '../../database/entities/user.entity';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import { InviteUserDto } from './dto/invite-user.dto';
+import {
+  OrganizationUser,
+  OrgRole,
+} from '../../database/entities/organization-user.entity';
+import { AuthService } from '../auth/auth.service';
+import { MemberPlan } from 'src/database/entities';
 
 @Injectable()
 export class OrganizationsService {
   constructor(
     @InjectRepository(Organization)
     private organizationRepository: Repository<Organization>,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+
+    @InjectRepository(OrganizationUser)
+    private organizationUserRepository: Repository<OrganizationUser>,
+
+    @InjectRepository(MemberPlan)
+    private memberPlanRepository: Repository<MemberPlan>,
+
+    private authService: AuthService,
   ) {}
 
-  async getOrganization(organizationId: string) {
+  async getOrganization(slug: string) {
     const organization = await this.organizationRepository.findOne({
-      where: { id: organizationId },
+      where: { slug },
     });
 
     if (!organization) {
@@ -36,30 +46,42 @@ export class OrganizationsService {
     };
   }
 
+  async selectOrganization(
+    userId: string,
+    organizationId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const orgUser = await this.organizationUserRepository.findOne({
+      where: { user_id: userId, organization_id: organizationId },
+      relations: ['organization', 'user'],
+    });
+
+    if (!orgUser) {
+      throw new UnauthorizedException('Access denied');
+    }
+
+    // Generate new tokens for this organization
+    return this.authService.generateTokens(orgUser.user, ipAddress, userAgent);
+  }
+
   async updateOrganization(
     organizationId: string,
     updateDto: UpdateOrganizationDto,
     userId: string,
   ) {
     // Check if user is admin
-    const user = await this.userRepository.findOne({
-      where: { id: userId, organization_id: organizationId },
+    const orgUser = await this.organizationUserRepository.findOne({
+      where: { user_id: userId, organization_id: organizationId },
+      relations: ['organization'],
     });
 
-    if (!user || user.role !== 'admin') {
+    if (!orgUser || orgUser.role !== OrgRole.ADMIN) {
       throw new ForbiddenException('Only admins can update organization');
     }
 
-    const organization = await this.organizationRepository.findOne({
-      where: { id: organizationId },
-    });
-
-    if (!organization) {
-      throw new NotFoundException('Organization not found');
-    }
-
     // Check if email is being changed and is unique
-    if (updateDto.email && updateDto.email !== organization.email) {
+    if (updateDto.email && updateDto.email !== orgUser.organization.email) {
       const existingOrg = await this.organizationRepository.findOne({
         where: { email: updateDto.email },
       });
@@ -69,8 +91,10 @@ export class OrganizationsService {
       }
     }
 
-    Object.assign(organization, updateDto);
-    const updated = await this.organizationRepository.save(organization);
+    Object.assign(orgUser.organization, updateDto);
+    const updated = await this.organizationRepository.save(
+      orgUser.organization,
+    );
 
     return {
       message: 'Organization updated successfully',
@@ -78,74 +102,15 @@ export class OrganizationsService {
     };
   }
 
-  async getTeamMembers(organizationId: string) {
-    const users = await this.userRepository.find({
+  async getStaffMembers(organizationId: string) {
+    const users = await this.organizationUserRepository.find({
       where: { organization_id: organizationId },
-      select: [
-        'id',
-        'email',
-        'first_name',
-        'last_name',
-        'role',
-        'is_active',
-        'created_at',
-      ],
+      select: ['id', 'user_id', 'role', 'status'],
     });
 
     return {
       message: 'Team members retrieved successfully',
       data: users,
-    };
-  }
-
-  async inviteUser(
-    organizationId: string,
-    inviteDto: InviteUserDto,
-    inviterId: string,
-  ) {
-    // Check if inviter is admin
-    const inviter = await this.userRepository.findOne({
-      where: { id: inviterId, organization_id: organizationId },
-    });
-
-    if (!inviter || inviter.role !== 'admin') {
-      throw new ForbiddenException('Only admins can invite users');
-    }
-
-    // Check if user already exists
-    const existingUser = await this.userRepository.findOne({
-      where: { email: inviteDto.email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(inviteDto.password, 10);
-
-    // Create user
-    const user = this.userRepository.create({
-      organization_id: organizationId,
-      email: inviteDto.email,
-      password_hash: hashedPassword,
-      first_name: inviteDto.firstName,
-      last_name: inviteDto.lastName,
-      role: inviteDto.role,
-      is_active: true,
-    });
-
-    const savedUser = await this.userRepository.save(user);
-
-    return {
-      message: 'User invited successfully',
-      data: {
-        id: savedUser.id,
-        email: savedUser.email,
-        first_name: savedUser.first_name,
-        last_name: savedUser.last_name,
-        role: savedUser.role,
-      },
     };
   }
 
@@ -155,11 +120,11 @@ export class OrganizationsService {
     removerId: string,
   ) {
     // Check if remover is admin
-    const remover = await this.userRepository.findOne({
-      where: { id: removerId, organization_id: organizationId },
+    const remover = await this.organizationUserRepository.findOne({
+      where: { user_id: removerId, organization_id: organizationId },
     });
 
-    if (!remover || remover.role !== 'admin') {
+    if (!remover || remover.role !== OrgRole.ADMIN) {
       throw new ForbiddenException('Only admins can remove users');
     }
 
@@ -169,8 +134,8 @@ export class OrganizationsService {
     }
 
     // Find user to remove
-    const userToRemove = await this.userRepository.findOne({
-      where: { id: userIdToRemove, organization_id: organizationId },
+    const userToRemove = await this.organizationUserRepository.findOne({
+      where: { user_id: userIdToRemove, organization_id: organizationId },
     });
 
     if (!userToRemove) {
@@ -178,8 +143,8 @@ export class OrganizationsService {
     }
 
     // Soft delete by marking inactive
-    userToRemove.is_active = false;
-    await this.userRepository.save(userToRemove);
+    userToRemove.status = 'inactive';
+    await this.organizationUserRepository.save(userToRemove);
 
     return {
       message: 'User removed successfully',
@@ -190,19 +155,23 @@ export class OrganizationsService {
     // Get basic stats
     const [totalUsers, totalMembers, totalPlans, activeSubscriptions] =
       await Promise.all([
-        this.userRepository.count({
-          where: { organization_id: organizationId, is_active: true },
+        this.organizationUserRepository.count({
+          where: { organization_id: organizationId, status: 'active' },
         }),
-        this.userRepository.query(
-          'SELECT COUNT(*) as count FROM members WHERE organization_id = $1',
+        this.organizationUserRepository.query(
+          'SELECT COUNT(*) as count FROM organization_users WHERE role = $1',
+          [OrgRole.MEMBER],
+        ),
+        this.memberPlanRepository.query(
+          'SELECT COUNT(*) as count FROM member_plans WHERE organization_id = $1 AND is_active = true',
           [organizationId],
         ),
-        this.userRepository.query(
-          'SELECT COUNT(*) as count FROM plans WHERE organization_id = $1 AND is_active = true',
-          [organizationId],
-        ),
-        this.userRepository.query(
-          "SELECT COUNT(*) as count FROM subscriptions WHERE organization_id = $1 AND status = 'active'",
+        this.memberPlanRepository.query(
+          `SELECT COUNT(DISTINCT ms.id) as count 
+            FROM member_subscriptions ms
+            INNER JOIN member_plans mp ON ms.plan_id = mp.id
+            WHERE mp.organization_id = $1 
+            AND ms.status = 'active'`,
           [organizationId],
         ),
       ]);

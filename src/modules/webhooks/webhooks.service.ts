@@ -4,8 +4,11 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { Payment } from '../../database/entities/payment.entity';
-import { Invoice } from '../../database/entities/invoice.entity';
-import { Subscription } from '../../database/entities/subscription.entity';
+import { Invoice, InvoiceStatus } from '../../database/entities/invoice.entity';
+import {
+  MemberSubscription,
+  SubscriptionStatus,
+} from '../../database/entities/member-subscription.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -16,10 +19,13 @@ export class WebhooksService {
   constructor(
     @InjectRepository(Payment)
     private paymentRepository: Repository<Payment>,
+
     @InjectRepository(Invoice)
     private invoiceRepository: Repository<Invoice>,
-    @InjectRepository(Subscription)
-    private subscriptionRepository: Repository<Subscription>,
+
+    @InjectRepository(MemberSubscription)
+    private memberSubscriptionRepository: Repository<MemberSubscription>,
+
     private configService: ConfigService,
     private notificationsService: NotificationsService,
   ) {
@@ -92,7 +98,7 @@ export class WebhooksService {
     // Find payment by reference
     const payment = await this.paymentRepository.findOne({
       where: { provider_reference: data.reference },
-      relations: ['invoice', 'invoice.subscription', 'member'],
+      relations: ['invoices', 'invoices.member_subscription', 'users'],
     });
 
     if (!payment) {
@@ -118,20 +124,20 @@ export class WebhooksService {
 
     // Update invoice
     if (payment.invoice) {
-      payment.invoice.status = 'paid';
+      payment.invoice.status = InvoiceStatus.PAID;
       payment.invoice.paid_at = new Date(data.paid_at);
       await this.invoiceRepository.save(payment.invoice);
 
       // If invoice is linked to a subscription, ensure it's active
-      if (payment.invoice.subscription) {
-        const subscription = payment.invoice.subscription;
+      if (payment.invoice.member_subscription) {
+        const subscription = payment.invoice.member_subscription;
 
         if (
-          subscription.status === 'expired' ||
-          subscription.status === 'paused'
+          subscription.status === SubscriptionStatus.EXPIRED ||
+          subscription.status === SubscriptionStatus.PAUSED
         ) {
-          subscription.status = 'active';
-          await this.subscriptionRepository.save(subscription);
+          subscription.status = SubscriptionStatus.ACTIVE;
+          await this.memberSubscriptionRepository.save(subscription);
           this.logger.log(
             `Subscription ${subscription.id} reactivated after payment`,
           );
@@ -140,11 +146,11 @@ export class WebhooksService {
     }
 
     // Send notification
-    if (payment.member) {
+    if (payment.payer_user) {
       await this.notificationsService.sendPaymentSuccessNotification({
-        email: payment.member.email,
-        phone: payment.member.phone,
-        memberName: `${payment.member.first_name} ${payment.member.last_name}`,
+        email: payment.payer_user.email,
+        phone: payment.payer_user.phone,
+        memberName: `${payment.payer_user.first_name} ${payment.payer_user.last_name}`,
         amount: payment.amount,
         currency: payment.currency,
         reference: data.reference,
@@ -161,7 +167,7 @@ export class WebhooksService {
 
     const payment = await this.paymentRepository.findOne({
       where: { provider_reference: data.reference },
-      relations: ['invoice', 'member'],
+      relations: ['invoices', 'users'],
     });
 
     if (!payment) {
@@ -181,18 +187,18 @@ export class WebhooksService {
     await this.paymentRepository.save(payment);
 
     // Update invoice status
-    if (payment.invoice && payment.invoice.status === 'pending') {
-      payment.invoice.status = 'failed';
+    if (payment.invoice && payment.invoice.status === InvoiceStatus.PENDING) {
+      payment.invoice.status = InvoiceStatus.FAILED;
       await this.invoiceRepository.save(payment.invoice);
     }
 
     // Send notification
-    if (payment.member && payment.invoice) {
+    if (payment.payer_user && payment.invoice) {
       const frontendUrl = this.configService.get('frontend.url');
       await this.notificationsService.sendPaymentFailedNotification({
-        email: payment.member.email,
-        phone: payment.member.phone,
-        memberName: `${payment.member.first_name} ${payment.member.last_name}`,
+        email: payment.payer_user.email,
+        phone: payment.payer_user.phone,
+        memberName: `${payment.payer_user.first_name} ${payment.payer_user.last_name}`,
         amount: payment.amount,
         currency: payment.currency,
         failureReason: data.gateway_response || 'Payment declined',
@@ -217,7 +223,7 @@ export class WebhooksService {
   private async handleInvoicePaymentFailed(data: any) {
     this.logger.log(`Invoice payment failed: ${data.invoice_code}`);
 
-    // Handle failed recurring payments
+    // Handle failed recurring payments for Paystack's native invoice feature
     // You can implement retry logic or notification here
   }
 }

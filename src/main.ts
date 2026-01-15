@@ -7,6 +7,7 @@ import { json } from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import * as http from 'http';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -33,7 +34,11 @@ async function bootstrap() {
   const frontendUrl = configService.get('frontend.url');
   // console.log('frontendUrl', typeof frontendUrl, frontendUrl);
 
-  const allowedOrigins = ['https://paypips.vercel.app', frontendUrl];
+  const allowedOrigins = [
+    'https://paypips.vercel.app',
+    frontendUrl,
+    'http://localhost:4000',
+  ];
   app.enableCors({
     origin: (
       origin: string | undefined,
@@ -54,10 +59,10 @@ async function bootstrap() {
   // Configure JSON parser with raw body for webhooks
   app.use(
     json({
-      verify: (req: any, res, buf) => {
+      verify: (req: http.IncomingMessage, res: http.ServerResponse, buf) => {
         // Store raw body for webhook signature verification
-        if (req.url.includes('/webhooks')) {
-          req.rawBody = buf;
+        if (req.url?.includes('/webhooks')) {
+          req['rawBody'] = buf;
         }
       },
     }),
@@ -87,10 +92,10 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('Renova API')
-    .setDescription('The Renova API documentation')
+    .setTitle('Willow API')
+    .setDescription('The Willow API documentation')
     .setVersion('1.0')
-    .setContact('Renova', 'https://paypips.vercel.app', 'keneusih@gmail.com')
+    .setContact('Willow', 'https://paypips.vercel.app', 'keneusih@gmail.com')
     .addBearerAuth(
       {
         type: 'http',
@@ -109,7 +114,7 @@ async function bootstrap() {
   const port = configService.get('app.port');
   await app.listen(port);
 
-  console.log(`💰️ Renova API running on http://localhost:${port}/${apiPrefix}`);
+  console.log(`💰️ Willow API running on http://localhost:${port}/api`);
   console.log(
     `📡 Webhook endpoint: http://localhost:${port}/${apiPrefix}/webhooks/paystack`,
   );

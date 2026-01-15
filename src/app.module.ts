@@ -18,6 +18,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { CronModule } from './modules/cron/cron.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
+import { InvitationsModule } from './modules/invitations/invitations.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { CustomThrottlerGuard } from './common/guards/throttle.guard';
     ]),
     DatabaseModule,
     AuthModule,
+    InvitationsModule,
     OrganizationsModule,
     PlansModule,
     MembersModule,

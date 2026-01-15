@@ -9,7 +9,7 @@ import { Type } from 'class-transformer';
 
 export class CreateInvoiceDto {
   @IsUUID()
-  customerId: string;
+  billedUserId: string;
 
   @IsOptional()
   @IsUUID()

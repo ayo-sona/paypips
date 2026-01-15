@@ -8,8 +8,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Organization } from './organization.entity';
-import { Member } from './member.entity';
 import { Invoice } from './invoice.entity';
+import { User } from './user.entity';
 
 @Entity('payments')
 export class Payment {
@@ -17,27 +17,30 @@ export class Payment {
   id: string;
 
   @Column({ type: 'uuid' })
-  organization_id: string;
+  payer_org_id: string;
+
+  @Column({ type: 'uuid' })
+  payer_user_id: string;
 
   @Column({ type: 'uuid', nullable: true })
   invoice_id: string;
 
-  @Column({ type: 'uuid' })
-  member_id: string;
+  @Column({ type: 'text' })
+  payer_type: string;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: number;
 
-  @Column({ type: 'varchar', length: 3, default: 'NGN' })
+  @Column({ type: 'text', default: 'NGN' })
   currency: string;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'text' })
   provider: string;
 
-  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
+  @Column({ type: 'text', unique: true, nullable: true })
   provider_reference: string;
 
-  @Column({ type: 'varchar', length: 50, default: 'pending' })
+  @Column({ type: 'text', default: 'pending' })
   status: string;
 
   @Column({ type: 'jsonb', nullable: true })
@@ -50,16 +53,16 @@ export class Payment {
   updated_at: Date;
 
   @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'organization_id' })
-  organization: Organization;
+  @JoinColumn({ name: 'payer_org_id' })
+  payer_org: Organization;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'payer_user_id' })
+  payer_user: User;
 
   @ManyToOne(() => Invoice, (invoice) => invoice.payments, {
-    onDelete: 'SET NULL',
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'invoice_id' })
   invoice: Invoice;
-
-  @ManyToOne(() => Member, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'member_id' })
-  member: Member;
 }

@@ -7,28 +7,36 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, In } from 'typeorm';
 import { Invoice } from '../../database/entities/invoice.entity';
 import { Member } from '../../database/entities/member.entity';
-import { Subscription } from '../../database/entities/subscription.entity';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { generateInvoiceNumber } from '../../common/utils/invoice-number.util';
+import { MemberSubscription } from '../../database/entities/member-subscription.entity';
+import { InvoiceStatus } from '../../database/entities/invoice.entity';
 
 @Injectable()
 export class InvoicesService {
   constructor(
     @InjectRepository(Invoice)
     private invoiceRepository: Repository<Invoice>,
+
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
-    @InjectRepository(Subscription)
-    private subscriptionRepository: Repository<Subscription>,
+
+    @InjectRepository(MemberSubscription)
+    private memberSubscriptionRepository: Repository<MemberSubscription>,
   ) {}
 
-  async create(organizationId: string, createInvoiceDto: CreateInvoiceDto) {
-    // Verify customer
+  async createMemberInvoice(
+    organizationId: string,
+    createInvoiceDto: CreateInvoiceDto,
+  ) {
+    // Verify member
     const member = await this.memberRepository.findOne({
       where: {
-        id: createInvoiceDto.customerId,
-        organization_id: organizationId,
+        id: createInvoiceDto.billedUserId,
+        organization_user: {
+          organization_id: organizationId,
+        },
       },
     });
 
@@ -38,7 +46,7 @@ export class InvoicesService {
 
     // Verify subscription if provided
     if (createInvoiceDto.subscriptionId) {
-      const subscription = await this.subscriptionRepository.findOne({
+      const subscription = await this.memberSubscriptionRepository.findOne({
         where: {
           id: createInvoiceDto.subscriptionId,
           organization_id: organizationId,
@@ -52,13 +60,13 @@ export class InvoicesService {
 
     // Create invoice
     const invoice = this.invoiceRepository.create({
-      organization_id: organizationId,
-      member_id: createInvoiceDto.customerId,
-      subscription_id: createInvoiceDto.subscriptionId,
+      issuer_org_id: organizationId,
+      billed_user_id: createInvoiceDto.billedUserId,
+      member_subscription_id: createInvoiceDto.subscriptionId,
       invoice_number: generateInvoiceNumber(organizationId),
       amount: createInvoiceDto.amount,
       currency: createInvoiceDto.currency || 'NGN',
-      status: 'pending',
+      status: InvoiceStatus.PENDING,
       due_date: createInvoiceDto.dueDate,
       metadata: createInvoiceDto.metadata || {},
     });
@@ -66,12 +74,12 @@ export class InvoicesService {
     const saved = await this.invoiceRepository.save(invoice);
 
     return {
-      message: 'Invoice created successfully',
+      message: 'Member invoice created successfully',
       data: saved,
     };
   }
 
-  async findAll(
+  async findAllMemberInvoices(
     organizationId: string,
     paginationDto: PaginationDto,
     status?: string,
@@ -79,32 +87,32 @@ export class InvoicesService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const whereCondition: any = { organization_id: organizationId };
+    const whereCondition: any = { issuer_org_id: organizationId };
     if (status) {
       whereCondition.status = status;
     }
 
     const [invoices, total] = await this.invoiceRepository.findAndCount({
       where: whereCondition,
-      relations: ['member', 'subscription', 'payments'],
+      relations: ['users', 'member_subscriptions', 'payments'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,
     });
 
     return {
-      message: 'Invoices retrieved successfully',
+      message: 'All member invoices retrieved successfully',
       ...paginate(invoices, total, page, limit),
     };
   }
 
-  async findOne(organizationId: string, invoiceId: string) {
+  async findMemberInvoice(organizationId: string, invoiceId: string) {
     const invoice = await this.invoiceRepository.findOne({
       where: {
         id: invoiceId,
-        organization_id: organizationId,
+        issuer_org_id: organizationId,
       },
-      relations: ['member', 'subscription', 'payments'],
+      relations: ['users', 'member_subscriptions', 'payments'],
     });
 
     if (!invoice) {
@@ -112,14 +120,14 @@ export class InvoicesService {
     }
 
     return {
-      message: 'Invoice retrieved successfully',
+      message: 'Member invoice retrieved successfully',
       data: invoice,
     };
   }
 
-  async getMemberInvoices(
+  async getMemberSubscriptionInvoices(
     organizationId: string,
-    memberId: string,
+    subscriptionId: string,
     paginationDto: PaginationDto,
   ) {
     const { page = 1, limit = 10 } = paginationDto;
@@ -127,46 +135,46 @@ export class InvoicesService {
 
     const [invoices, total] = await this.invoiceRepository.findAndCount({
       where: {
-        organization_id: organizationId,
-        member_id: memberId,
+        issuer_org_id: organizationId,
+        member_subscription_id: subscriptionId,
       },
-      relations: ['subscription', 'payments'],
+      relations: ['member_subscriptions', 'payments'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,
     });
 
     return {
-      message: 'Customer invoices retrieved successfully',
+      message: 'Member subscription invoices retrieved successfully',
       ...paginate(invoices, total, page, limit),
     };
   }
 
-  async getOverdueInvoices(organizationId: string) {
+  async getOverdueMemberInvoices(organizationId: string) {
     const now = new Date();
 
     const invoices = await this.invoiceRepository.find({
       where: {
-        organization_id: organizationId,
-        status: In(['pending', 'failed']),
+        issuer_org_id: organizationId,
+        status: In(['pending', 'overdue']),
         due_date: LessThan(now),
       },
-      relations: ['member'],
+      relations: ['users'],
       order: { due_date: 'ASC' },
     });
 
     return {
-      message: 'Overdue invoices retrieved successfully',
+      message: 'Overdue member invoices retrieved successfully',
       data: invoices,
       count: invoices.length,
     };
   }
 
-  async markAsPaid(organizationId: string, invoiceId: string) {
+  async markMemberInvoiceAsPaid(organizationId: string, invoiceId: string) {
     const invoice = await this.invoiceRepository.findOne({
       where: {
         id: invoiceId,
-        organization_id: organizationId,
+        issuer_org_id: organizationId,
       },
     });
 
@@ -174,25 +182,25 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (invoice.status === 'paid') {
+    if (invoice.status === InvoiceStatus.PAID) {
       throw new BadRequestException('Invoice already paid');
     }
 
-    invoice.status = 'paid';
+    invoice.status = InvoiceStatus.PAID;
     invoice.paid_at = new Date();
     await this.invoiceRepository.save(invoice);
 
     return {
-      message: 'Invoice marked as paid',
+      message: 'Member invoice marked as paid',
       data: invoice,
     };
   }
 
-  async cancelInvoice(organizationId: string, invoiceId: string) {
+  async cancelMemberInvoice(organizationId: string, invoiceId: string) {
     const invoice = await this.invoiceRepository.findOne({
       where: {
         id: invoiceId,
-        organization_id: organizationId,
+        issuer_org_id: organizationId,
       },
     });
 
@@ -200,20 +208,20 @@ export class InvoicesService {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (invoice.status === 'paid') {
+    if (invoice.status === InvoiceStatus.PAID) {
       throw new BadRequestException('Cannot cancel paid invoice');
     }
 
-    invoice.status = 'canceled';
+    invoice.status = InvoiceStatus.CANCELLED;
     await this.invoiceRepository.save(invoice);
 
     return {
-      message: 'Invoice canceled successfully',
+      message: 'Member invoice canceled successfully',
       data: invoice,
     };
   }
 
-  async getInvoiceStats(organizationId: string) {
+  async getMembersInvoiceStats(organizationId: string) {
     const [
       totalInvoices,
       paidInvoices,
@@ -222,37 +230,38 @@ export class InvoicesService {
       totalRevenue,
     ] = await Promise.all([
       this.invoiceRepository.count({
-        where: { organization_id: organizationId },
+        where: { issuer_org_id: organizationId },
       }),
       this.invoiceRepository.count({
-        where: { organization_id: organizationId, status: 'paid' },
+        where: { issuer_org_id: organizationId, status: InvoiceStatus.PAID },
       }),
       this.invoiceRepository.count({
-        where: { organization_id: organizationId, status: 'pending' },
+        where: { issuer_org_id: organizationId, status: InvoiceStatus.PENDING },
       }),
       this.invoiceRepository.count({
         where: {
-          organization_id: organizationId,
-          status: In(['pending', 'failed']),
+          issuer_org_id: organizationId,
+          status: In([InvoiceStatus.PENDING, InvoiceStatus.OVERDUE]),
           due_date: LessThan(new Date()),
         },
       }),
       this.invoiceRepository.query(
-        `SELECT COALESCE(SUM(amount), 0) as total 
-           FROM invoices 
-           WHERE organization_id = $1 AND status = 'paid'`,
-        [organizationId],
+        `SELECT COALESCE(SUM(amount), 0) as total
+           FROM invoices
+           WHERE issuer_org_id = $1 AND status = $2`,
+        [organizationId, InvoiceStatus.PAID],
       ),
     ]);
 
     return {
-      message: 'Invoice stats retrieved successfully',
+      message: 'Member invoice stats retrieved successfully',
       data: {
         total_invoices: totalInvoices,
         paid_invoices: paidInvoices,
         pending_invoices: pendingInvoices,
         overdue_invoices: overdueInvoices,
-        failed_invoices: totalInvoices - paidInvoices - pendingInvoices,
+        cancelled_invoices:
+          totalInvoices - paidInvoices - pendingInvoices - overdueInvoices,
         total_revenue: parseFloat(totalRevenue[0].total),
       },
     };

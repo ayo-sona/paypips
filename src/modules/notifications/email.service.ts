@@ -12,10 +12,13 @@ export class EmailService {
     this.transporter = nodemailer.createTransport({
       host: this.configService.get('smtp.host'),
       port: this.configService.get('smtp.port'),
-      secure: false,
+      secure: false, // true for 465, false for other ports
       auth: {
         user: this.configService.get('smtp.user'),
         pass: this.configService.get('smtp.password'),
+      },
+      tls: {
+        rejectUnauthorized: false,
       },
     });
   }
@@ -25,7 +28,7 @@ export class EmailService {
       const html = this.getEmailTemplate(options.template, options.context);
 
       await this.transporter.sendMail({
-        from: `"PayPips" <${this.configService.get('smtp.user')}>`,
+        from: `"${this.configService.get('smtp.fromName')}" <${this.configService.get('smtp.fromEmail')}>`,
         to: options.to,
         subject: options.subject,
         html,
@@ -58,6 +61,38 @@ export class EmailService {
     };
 
     return templates[template] || this.defaultTemplate(context);
+  }
+
+  private welcomeEmailTemplate(context: any): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: #f9f9f9; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎉 Welcome to ${context.organizationName}!</h1>
+          </div>
+          <div class="content">
+            <p>Hi ${context.userName},</p>
+            <p>Welcome! Your account has been created successfully.</p>
+            <p>You can now start managing your subscriptions and members.</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated email from WIllow</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 
   private paymentSuccessTemplate(context: any): string {
@@ -94,7 +129,7 @@ export class EmailService {
             <p>Thank you for your payment!</p>
           </div>
           <div class="footer">
-            <p>This is an automated email from PayPips</p>
+            <p>This is an automated email from WIllow</p>
           </div>
         </div>
       </body>
@@ -138,7 +173,7 @@ export class EmailService {
             </p>
           </div>
           <div class="footer">
-            <p>This is an automated email from PayPips</p>
+            <p>This is an automated email from WIllow</p>
           </div>
         </div>
       </body>
@@ -180,7 +215,7 @@ export class EmailService {
             <p>Thank you for subscribing!</p>
           </div>
           <div class="footer">
-            <p>This is an automated email from PayPips</p>
+            <p>This is an automated email from WIllow</p>
           </div>
         </div>
       </body>
@@ -217,7 +252,7 @@ export class EmailService {
             </p>
           </div>
           <div class="footer">
-            <p>This is an automated email from PayPips</p>
+            <p>This is an automated email from WIllow</p>
           </div>
         </div>
       </body>
@@ -253,7 +288,7 @@ export class EmailService {
             </p>
           </div>
           <div class="footer">
-            <p>This is an automated email from PayPips</p>
+            <p>This is an automated email from WIllow</p>
           </div>
         </div>
       </body>
@@ -296,7 +331,7 @@ export class EmailService {
             </p>
           </div>
           <div class="footer">
-            <p>This is an automated email from PayPips</p>
+            <p>This is an automated email from WIllow</p>
           </div>
         </div>
       </body>
@@ -340,39 +375,7 @@ export class EmailService {
             </p>
           </div>
           <div class="footer">
-            <p>This is an automated email from PayPips</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  private welcomeEmailTemplate(context: any): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
-          .content { padding: 20px; background: #f9f9f9; }
-          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🎉 Welcome to ${context.organizationName}!</h1>
-          </div>
-          <div class="content">
-            <p>Hi ${context.userName},</p>
-            <p>Welcome! Your account has been created successfully.</p>
-            <p>You can now start managing your subscriptions and members.</p>
-          </div>
-          <div class="footer">
-            <p>This is an automated email from PayPips</p>
+            <p>This is an automated email from WIllow</p>
           </div>
         </div>
       </body>
@@ -385,7 +388,7 @@ export class EmailService {
       <!DOCTYPE html>
       <html>
       <body>
-        <p>${context.message || 'Notification from PayPips'}</p>
+        <p>${context.message || 'Notification from WIllow'}</p>
       </body>
       </html>
     `;

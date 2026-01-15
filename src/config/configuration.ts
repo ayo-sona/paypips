@@ -44,6 +44,8 @@ export default () => ({
     port: parseInt(process.env.SMTP_PORT as string, 10) || 587,
     user: process.env.SMTP_USER,
     password: process.env.SMTP_PASSWORD,
+    fromName: process.env.SMTP_FROM_NAME,
+    fromEmail: process.env.SMTP_FROM_EMAIL,
   },
 
   termii: {

@@ -32,9 +32,9 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, Between, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Subscription } from '../../database/entities/subscription.entity';
-import { Invoice } from '../../database/entities/invoice.entity';
-import { Plan } from '../../database/entities/plan.entity';
+import { MemberSubscription } from '../../database/entities/member-subscription.entity';
+import { Invoice, InvoiceStatus } from '../../database/entities/invoice.entity';
+import { MemberPlan } from '../../database/entities/member-plan.entity';
 import { Member } from '../../database/entities/member.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthService } from '../auth/auth.service';
@@ -45,14 +45,18 @@ export class CronService {
   private readonly logger = new Logger(CronService.name);
 
   constructor(
-    @InjectRepository(Subscription)
-    private subscriptionRepository: Repository<Subscription>,
+    @InjectRepository(MemberSubscription)
+    private memberSubscriptionRepository: Repository<MemberSubscription>,
+
     @InjectRepository(Invoice)
     private invoiceRepository: Repository<Invoice>,
-    @InjectRepository(Plan)
-    private planRepository: Repository<Plan>,
+
+    @InjectRepository(MemberPlan)
+    private memberPlanRepository: Repository<MemberPlan>,
+
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
+
     private notificationsService: NotificationsService,
     private configService: ConfigService,
     private authService: AuthService,
@@ -66,27 +70,26 @@ export class CronService {
 
     const now = new Date();
 
-    const expiredSubscriptions = await this.subscriptionRepository.find({
+    const expiredSubscriptions = await this.memberSubscriptionRepository.find({
       where: {
         status: In(['active', 'trialing']),
-        current_period_end: LessThan(now),
+        expires_at: LessThan(now),
       },
-      relations: ['member', 'plan'],
+      relations: ['member', 'member_plans'],
     });
 
     for (const subscription of expiredSubscriptions) {
       subscription.status = 'expired';
-      subscription.ended_at = now;
-      await this.subscriptionRepository.save(subscription);
+      await this.memberSubscriptionRepository.save(subscription);
 
       // Send notification
       const frontendUrl = this.configService.get('frontend.url');
       await this.notificationsService.sendSubscriptionExpiredNotification({
-        email: subscription.member.email,
-        phone: subscription.member.phone,
-        memberName: `${subscription.member.first_name} ${subscription.member.last_name}`,
+        email: subscription.member.user.email,
+        phone: subscription.member.user.phone,
+        memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
         planName: subscription.plan.name,
-        reactivateUrl: `${frontendUrl}/subscriptions/${subscription.id}/reactivate`,
+        reactivateUrl: `${frontendUrl}/subscriptions/${subscription.id}/renew`,
       });
 
       this.logger.log(`Subscription ${subscription.id} marked as expired`);
@@ -98,63 +101,63 @@ export class CronService {
   // CHECK TRIALING SUBSCRIPTIONS
   // Convert trials to active and generate invoices
   // Runs every hour
-  @Cron(CronExpression.EVERY_HOUR)
-  async checkTrialingSubscriptions() {
-    this.logger.log('🔍 Checking trialing subscriptions...');
+  //   @Cron(CronExpression.EVERY_HOUR)
+  //   async checkTrialingSubscriptions() {
+  //     this.logger.log('🔍 Checking trialing subscriptions...');
 
-    const now = new Date();
+  //     const now = new Date();
 
-    const trialEndedSubscriptions = await this.subscriptionRepository.find({
-      where: {
-        status: 'trialing',
-        trial_end: LessThan(now),
-      },
-      relations: ['plan', 'member', 'organization'],
-    });
+  //     const trialEndedSubscriptions = await this.memberSubscriptionRepository.find({
+  //       where: {
+  //         status: 'trialing',
+  //         trial_end: LessThan(now),
+  //       },
+  //       relations: ['plan', 'member', 'organization'],
+  //     });
 
-    for (const subscription of trialEndedSubscriptions) {
-      subscription.status = 'active';
-      await this.subscriptionRepository.save(subscription);
+  //     for (const subscription of trialEndedSubscriptions) {
+  //       subscription.status = 'active';
+  //       await this.memberSubscriptionRepository.save(subscription);
 
-      // Create invoice for first payment
-      const invoice = this.invoiceRepository.create({
-        organization_id: subscription.organization_id,
-        subscription_id: subscription.id,
-        member_id: subscription.member_id,
-        invoice_number: generateInvoiceNumber(subscription.organization_id),
-        amount: subscription.plan.amount,
-        currency: subscription.plan.currency,
-        status: 'pending',
-        due_date: subscription.current_period_end,
-        metadata: {
-          plan_name: subscription.plan.name,
-          trial_ended: true,
-        },
-      });
+  //       // Create invoice for first payment
+  //       const invoice = this.invoiceRepository.create({
+  //         organization_id: subscription.organization_id,
+  //         subscription_id: subscription.id,
+  //         member_id: subscription.member_id,
+  //         invoice_number: generateInvoiceNumber(subscription.organization_id),
+  //         amount: subscription.plan.amount,
+  //         currency: subscription.plan.currency,
+  //         status: 'pending',
+  //         due_date: subscription.expires_at,
+  //         metadata: {
+  //           plan_name: subscription.plan.name,
+  //           trial_ended: true,
+  //         },
+  //       });
 
-      await this.invoiceRepository.save(invoice);
+  //       await this.invoiceRepository.save(invoice);
 
-      // Send notification
-      const frontendUrl = this.configService.get('frontend.url');
-      await this.notificationsService.sendInvoiceCreatedNotification({
-        email: subscription.member.email,
-        memberName: `${subscription.member.first_name} ${subscription.member.last_name}`,
-        invoiceNumber: invoice.invoice_number,
-        amount: invoice.amount,
-        currency: invoice.currency,
-        dueDate: invoice.due_date,
-        paymentUrl: `${frontendUrl}/invoices/${invoice.id}/pay`,
-      });
+  //       // Send notification
+  //       const frontendUrl = this.configService.get('frontend.url');
+  //       await this.notificationsService.sendInvoiceCreatedNotification({
+  //         email: subscription.member.user.email,
+  //         memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
+  //         invoiceNumber: invoice.invoice_number,
+  //         amount: invoice.amount,
+  //         currency: invoice.currency,
+  //         dueDate: invoice.due_date,
+  //         paymentUrl: `${frontendUrl}/invoices/${invoice.id}/pay`,
+  //       });
 
-      this.logger.log(
-        `Trial ended for subscription ${subscription.id}, invoice created`,
-      );
-    }
+  //       this.logger.log(
+  //         `Trial ended for subscription ${subscription.id}, invoice created`,
+  //       );
+  //     }
 
-    this.logger.log(
-      `✅ Processed ${trialEndedSubscriptions.length} trial subscriptions`,
-    );
-  }
+  //     this.logger.log(
+  //       `✅ Processed ${trialEndedSubscriptions.length} trial subscriptions`,
+  //     );
+  //   }
 
   // SEND EXPIRY REMINDERS
   // Notify members 7 days, 3 days, and 1 day before expiry
@@ -180,21 +183,22 @@ export class CronService {
       const endOfDay = new Date(targetDate);
       endOfDay.setHours(23, 59, 59, 999);
 
-      const expiringSubscriptions = await this.subscriptionRepository.find({
-        where: {
-          status: 'active',
-          current_period_end: Between(startOfDay, endOfDay),
-        },
-        relations: ['member', 'plan'],
-      });
+      const expiringSubscriptions =
+        await this.memberSubscriptionRepository.find({
+          where: {
+            status: 'active',
+            expires_at: Between(startOfDay, endOfDay),
+          },
+          relations: ['members', 'plan'],
+        });
 
       for (const subscription of expiringSubscriptions) {
         await this.notificationsService.sendSubscriptionExpiringNotification({
-          email: subscription.member.email,
-          phone: subscription.member.phone,
-          memberName: `${subscription.member.first_name} ${subscription.member.last_name}`,
+          email: subscription.member.user.email,
+          phone: subscription.member.user.phone,
+          memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
           planName: subscription.plan.name,
-          expiryDate: subscription.current_period_end,
+          expiryDate: subscription.expires_at,
           daysLeft: days,
           renewUrl: `${frontendUrl}/subscriptions/${subscription.id}/renew`,
         });
@@ -222,10 +226,10 @@ export class CronService {
 
     const overdueInvoices = await this.invoiceRepository.find({
       where: {
-        status: In(['pending', 'failed']),
+        status: In(['pending', 'overdue']),
         due_date: LessThan(now),
       },
-      relations: ['member'],
+      relations: ['users'],
     });
 
     for (const invoice of overdueInvoices) {
@@ -238,9 +242,9 @@ export class CronService {
 
       if (reminderDays.includes(daysOverdue)) {
         await this.notificationsService.sendInvoiceOverdueNotification({
-          email: invoice.member.email,
-          phone: invoice.member.phone,
-          memberName: `${invoice.member.first_name} ${invoice.member.last_name}`,
+          email: invoice.billed_user.email,
+          phone: invoice.billed_user.phone,
+          memberName: `${invoice.billed_user.first_name} ${invoice.billed_user.last_name}`,
           invoiceNumber: invoice.invoice_number,
           amount: invoice.amount,
           currency: invoice.currency,
@@ -276,36 +280,35 @@ export class CronService {
     const endOfTomorrow = new Date(tomorrow);
     endOfTomorrow.setHours(23, 59, 59, 999);
 
-    const renewingSubscriptions = await this.subscriptionRepository.find({
+    const renewingSubscriptions = await this.memberSubscriptionRepository.find({
       where: {
         status: 'active',
-        current_period_end: Between(startOfTomorrow, endOfTomorrow),
+        expires_at: Between(startOfTomorrow, endOfTomorrow),
       },
-      relations: ['plan', 'member', 'organization'],
+      relations: ['member_plans', 'members', 'organizations'],
     });
 
     for (const subscription of renewingSubscriptions) {
       // Update subscription period
-      const newPeriodStart = subscription.current_period_end;
+      const newPeriodStart = subscription.expires_at;
       const newPeriodEnd = this.calculatePeriodEnd(
         newPeriodStart,
         subscription.plan.interval,
         subscription.plan.interval_count,
       );
 
-      subscription.current_period_start = newPeriodStart;
-      subscription.current_period_end = newPeriodEnd;
-      await this.subscriptionRepository.save(subscription);
+      subscription.expires_at = newPeriodEnd;
+      await this.memberSubscriptionRepository.save(subscription);
 
       // Create invoice for renewal
       const invoice = this.invoiceRepository.create({
-        organization_id: subscription.organization_id,
-        subscription_id: subscription.id,
-        member_id: subscription.member_id,
+        issuer_org_id: subscription.organization_id,
+        member_subscription_id: subscription.id,
+        billed_user_id: subscription.member_id,
         invoice_number: generateInvoiceNumber(subscription.organization_id),
-        amount: subscription.plan.amount,
+        amount: subscription.plan.price,
         currency: subscription.plan.currency,
-        status: 'pending',
+        status: InvoiceStatus.PENDING,
         due_date: newPeriodEnd,
         metadata: {
           plan_name: subscription.plan.name,
@@ -322,8 +325,8 @@ export class CronService {
       // Send notification
       const frontendUrl = this.configService.get('frontend.url');
       await this.notificationsService.sendInvoiceCreatedNotification({
-        email: subscription.member.email,
-        memberName: `${subscription.member.first_name} ${subscription.member.last_name}`,
+        email: subscription.member.user.email,
+        memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
         invoiceNumber: invoice.invoice_number,
         amount: invoice.amount,
         currency: invoice.currency,
@@ -354,7 +357,7 @@ export class CronService {
     const deletedInvoices = await this.invoiceRepository
       .createQueryBuilder()
       .delete()
-      .where('status = :status', { status: 'canceled' })
+      .where('status = :status', { status: InvoiceStatus.CANCELLED })
       .andWhere('created_at < :date', { date: sixMonthsAgo })
       .execute();
 
@@ -385,17 +388,17 @@ export class CronService {
       expiredSubscriptions,
       totalRevenue,
     ] = await Promise.all([
-      this.subscriptionRepository.count({ where: { status: 'active' } }),
-      this.subscriptionRepository.count({
+      this.memberSubscriptionRepository.count({ where: { status: 'active' } }),
+      this.memberSubscriptionRepository.count({
         where: {
           status: 'active',
           created_at: Between(today, tomorrow),
         },
       }),
-      this.subscriptionRepository.count({
+      this.memberSubscriptionRepository.count({
         where: {
           status: 'expired',
-          ended_at: Between(today, tomorrow),
+          expires_at: Between(today, tomorrow),
         },
       }),
       this.invoiceRepository

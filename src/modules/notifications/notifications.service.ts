@@ -18,6 +18,22 @@ export class NotificationsService {
     private smsService: SmsService,
   ) {}
 
+  async sendWelcomeEmail(data: {
+    email: string;
+    userName: string;
+    organizationName: string;
+  }) {
+    await this.emailService.sendEmail({
+      to: data.email,
+      subject: `Welcome to ${data.organizationName}!`,
+      template: 'welcome_email',
+      context: data,
+    });
+
+    this.logger.log(`Welcome email sent to ${data.email}`);
+    this.stats.emailsSent++;
+  }
+
   async sendPaymentSuccessNotification(data: {
     email: string;
     phone?: string;
@@ -197,22 +213,6 @@ export class NotificationsService {
     }
 
     this.logger.log(`Invoice overdue notification sent to ${data.email}`);
-    this.stats.emailsSent++;
-  }
-
-  async sendWelcomeEmail(data: {
-    email: string;
-    userName: string;
-    organizationName: string;
-  }) {
-    await this.emailService.sendEmail({
-      to: data.email,
-      subject: `Welcome to ${data.organizationName}!`,
-      template: 'welcome_email',
-      context: data,
-    });
-
-    this.logger.log(`Welcome email sent to ${data.email}`);
     this.stats.emailsSent++;
   }
 }

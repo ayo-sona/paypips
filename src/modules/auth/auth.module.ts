@@ -10,11 +10,21 @@ import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy';
 import { Organization } from '../../database/entities/organization.entity';
 import { User } from '../../database/entities/user.entity';
 import { RefreshToken } from '../../database/entities/refresh-token.entity';
+import { OrganizationUser } from '../../database/entities/organization-user.entity';
+import { Member } from '../../database/entities/member.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OrganizationInvite } from '../../database/entities/organization-invite.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Organization, User, RefreshToken]),
+    TypeOrmModule.forFeature([
+      Organization,
+      User,
+      RefreshToken,
+      OrganizationUser,
+      Member,
+      OrganizationInvite,
+    ]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
   Put,
   Delete,
   Body,
@@ -10,13 +9,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { MembersService } from './members.service';
-import { CreateCustomerDto } from './dto/create-customer.dto';
-import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { UpdateMemberDto } from './dto/update-member.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentOrganization } from '../../common/decorators/organization.decorator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+// import { PaginationDto } from '../../common/dto/pagination.dto';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Member } from 'src/database/entities';
+import { Member } from '../../database/entities/member.entity';
 
 @Controller('members')
 @UseGuards(JwtAuthGuard)
@@ -24,48 +22,30 @@ export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Create a new customer' })
-  @ApiResponse({
-    status: 201,
-    description: 'Customer created successfully',
-    type: Member,
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 409, description: 'Email already in use' })
-  @Post()
-  create(
-    @CurrentOrganization() organizationId: string,
-    @Body() createCustomerDto: CreateCustomerDto,
-  ) {
-    return this.membersService.create(organizationId, createCustomerDto);
-  }
-
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get all customers' })
+  @ApiOperation({ summary: 'Get all members' })
   @ApiResponse({
     status: 200,
-    description: 'Customers retrieved successfully',
+    description: 'Members retrieved successfully',
     type: [Member],
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get()
   findAll(
     @CurrentOrganization() organizationId: string,
-    @Query() paginationDto: PaginationDto,
     @Query('search') search?: string,
   ) {
-    return this.membersService.findAll(organizationId, paginationDto, search);
+    return this.membersService.findAll(organizationId, search);
   }
 
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get a customer by ID' })
+  @ApiOperation({ summary: 'Get a member by ID' })
   @ApiResponse({
     status: 200,
-    description: 'Customer retrieved successfully',
+    description: 'Member retrieved successfully',
     type: Member,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Customer not found' })
+  @ApiResponse({ status: 404, description: 'Member not found' })
   @Get(':id')
   findOne(
     @CurrentOrganization() organizationId: string,
@@ -75,13 +55,13 @@ export class MembersController {
   }
 
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get customer stats' })
+  @ApiOperation({ summary: 'Get member stats' })
   @ApiResponse({
     status: 200,
-    description: 'Customer stats retrieved successfully',
+    description: 'Member stats retrieved successfully',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Customer not found' })
+  @ApiResponse({ status: 404, description: 'Member not found' })
   @Get(':id/stats')
   getStats(
     @CurrentOrganization() organizationId: string,
@@ -91,30 +71,30 @@ export class MembersController {
   }
 
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Update a customer' })
+  @ApiOperation({ summary: 'Update a member' })
   @ApiResponse({
     status: 200,
-    description: 'Customer updated successfully',
+    description: 'Member updated successfully',
     type: Member,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Customer not found' })
+  @ApiResponse({ status: 404, description: 'Member not found' })
   @ApiResponse({ status: 409, description: 'Email already in use' })
   @Put(':id')
   update(
     @CurrentOrganization() organizationId: string,
     @Param('id') id: string,
-    @Body() updateCustomerDto: UpdateCustomerDto,
+    @Body() UpdateMemberDto: UpdateMemberDto,
   ) {
-    return this.membersService.update(organizationId, id, updateCustomerDto);
+    return this.membersService.update(organizationId, id, UpdateMemberDto);
   }
 
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Delete a customer' })
-  @ApiResponse({ status: 200, description: 'Customer deleted successfully' })
+  @ApiOperation({ summary: 'Delete a member' })
+  @ApiResponse({ status: 200, description: 'Member deleted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Customer not found' })
-  @ApiResponse({ status: 409, description: 'Customer has active subscription' })
+  @ApiResponse({ status: 404, description: 'Member not found' })
+  @ApiResponse({ status: 409, description: 'Member has active subscription' })
   @Delete(':id')
   delete(
     @CurrentOrganization() organizationId: string,

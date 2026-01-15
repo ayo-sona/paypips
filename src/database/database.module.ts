@@ -17,9 +17,10 @@ import * as entities from './entities';
         return {
           type: 'postgres',
           url: configService.get('supabase.pooler'),
-          entities: Object.values(entities),
+          // entities: Object.values(entities),
+          entities: [__dirname + '/../**/*.entity{.ts,.js}'], // This will auto-load all entity files
           autoLoadEntities: true,
-          synchronize: false,
+          synchronize: true,
           logging: configService.get('app.nodeEnv') === 'development',
           ssl: {
             rejectUnauthorized: false,

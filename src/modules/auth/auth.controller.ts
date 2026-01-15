@@ -15,22 +15,17 @@ import { LoginDto } from '../../common/dto/login.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RefreshJwtAuthGuard } from '../../common/guards/refresh-jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { SkipThrottle } from '../../common/decorators/throttle-skip.decorator';
+import { MemberRegisterDto } from 'src/common/dto/member-register.dto';
 
-@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('register')
+  @Post('register-organization')
   @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new user and organization' })
@@ -60,11 +55,64 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 409, description: 'Email already exists' })
   @ApiResponse({ status: 500, description: 'Internal Server Error' })
-  async register(
+  async registerOrganization(
     @Body() registerDto: RegisterDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.authService.register(registerDto);
+    const result = await this.authService.registerOrganization(registerDto);
+    const refreshToken = result.data.refresh_token;
+    if (refreshToken) {
+      response.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+      });
+    }
+
+    // Create a new object without refresh_token
+    const { refresh_token, ...data } = result.data;
+    return {
+      ...result,
+      data,
+    };
+  }
+
+  @Post('register-member')
+  @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new member' })
+  @ApiResponse({
+    status: 201,
+    description: 'Member successfully registered',
+    content: {
+      'application/json': {
+        example: {
+          access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          user: {
+            id: '123e4567-e89b-12d3-a456-426614174000',
+            email: 'levi@life.com',
+            firstName: 'Levi',
+            lastName: 'Ackerman',
+            role: 'member',
+          },
+          organization: {
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            name: 'Life Fitness',
+            email: 'wibble@life.com',
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 409, description: 'Email already exists' })
+  @ApiResponse({ status: 500, description: 'Internal Server Error' })
+  async registerMember(
+    @Body() registerDto: MemberRegisterDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.registerMember(registerDto);
     const refreshToken = result.data.refresh_token;
     if (refreshToken) {
       response.cookie('refreshToken', refreshToken, {

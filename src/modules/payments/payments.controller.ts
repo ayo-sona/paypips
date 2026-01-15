@@ -17,7 +17,6 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiTags,
 } from '@nestjs/swagger';
 
 @Controller('payments')
@@ -72,7 +71,7 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   getStats(@CurrentOrganization() organizationId: string) {
-    return this.paymentsService.getPaymentStats(organizationId);
+    return this.paymentsService.getMemberPaymentStats(organizationId);
   }
 
   @Get('member/:memberId')

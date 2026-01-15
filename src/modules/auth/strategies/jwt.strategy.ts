@@ -28,7 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     const user = await this.userRepository.findOne({
-      where: { id: payload.sub, is_active: true },
+      where: { id: payload.sub, status: 'active' },
     });
 
     if (!user) {
@@ -38,8 +38,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       id: user.id,
       email: user.email,
-      organization_id: user.organization_id,
-      role: user.role,
+      // organization_id: user.organization_id,
+      // role: user.role,
     };
   }
 }

@@ -8,7 +8,6 @@ import {
   Index,
 } from 'typeorm';
 import { User } from './user.entity';
-import { IsOptional } from 'class-validator';
 
 @Entity('refresh_tokens')
 export class RefreshToken {
@@ -28,16 +27,18 @@ export class RefreshToken {
   @Column({ type: 'boolean', default: false })
   is_revoked: boolean;
 
-  @Column({ type: 'varchar', length: 45, nullable: true })
+  @Column({ type: 'text', nullable: true })
   ip_address: string | null;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ type: 'text', nullable: true })
   user_agent: string | null;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.refresh_tokens, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'user_id' })
   user: User;
 }
