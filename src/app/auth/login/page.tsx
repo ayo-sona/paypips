@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import apiClient from "@/lib/apiClient";
+import { setCookie } from "cookies-next";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,7 +34,14 @@ export default function LoginPage() {
       });
 
       if (response.data?.data?.access_token) {
-        localStorage.setItem("access_token", response.data.data.access_token);
+        // localStorage.setItem("access_token", response.data.data.access_token);
+        setCookie("access_token", response.data.data.access_token, {
+          maxAge: 60 * 60, // 1 hour
+        });
+        localStorage.setItem(
+          "organizations",
+          JSON.stringify(response.data.data.organizations)
+        );
         router.push("/select");
       }
     } catch (err: any) {
