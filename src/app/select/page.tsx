@@ -62,36 +62,6 @@ export default function OrganizationSelectPage() {
           setLoading(false);
           return;
         }
-
-        // Mock data
-        // setTimeout(() => {
-        //   setOrganizations([
-        //     {
-        //       id: "1",
-        //       name: "Acme Corp",
-        //       role: "Owner",
-        //       memberCount: 24,
-        //       plan: "Pro",
-        //       lastActive: "2 hours ago",
-        //     },
-        //     {
-        //       id: "2",
-        //       name: "Tech Solutions",
-        //       role: "Admin",
-        //       memberCount: 8,
-        //       plan: "Starter",
-        //     },
-        //     {
-        //       id: "3",
-        //       name: "Design Studio",
-        //       role: "Member",
-        //       memberCount: 15,
-        //       plan: "Pro",
-        //       lastActive: "1 day ago",
-        //     },
-        //   ]);
-        //   setLoading(false);
-        // }, 800);
       } catch (error) {
         addToast("error", "Error", "Failed to load organizations");
         setLoading(false);

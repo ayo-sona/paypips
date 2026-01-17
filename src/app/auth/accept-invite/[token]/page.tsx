@@ -37,9 +37,12 @@ export default function AcceptInvitationPage() {
       try {
         // console.log("token", token);
         const response = await apiClient.get(`/invitations/validate/${token}`);
-        console.log("response", response);
-        setFormData((prev) => ({ ...prev, email: response.data.email }));
-        setInvitation(response.data);
+        console.log("response", response.data.data);
+        setFormData((prev) => ({
+          ...prev,
+          email: response?.data?.data?.email,
+        }));
+        setInvitation(response?.data?.data);
       } catch (err) {
         setError("Invalid or expired invitation");
       } finally {
@@ -167,7 +170,7 @@ export default function AcceptInvitationPage() {
             Complete Your Registration
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            You're joining {invitation?.organization}
+            {invitation?.organization}
           </p>
         </div>
 
