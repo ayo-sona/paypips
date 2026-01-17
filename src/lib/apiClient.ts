@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getCookie, setCookie } from "cookies-next";
 
 const BASE_URL = `https://paypips.onrender.com/api/v1`;
 // const BASE_URL = `http://localhost:4000/api/v1`;
@@ -10,7 +11,8 @@ const apiClient = axios.create({
 
 // Add access token to requests
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
+  const token = getCookie("access_token");
+  // const token = localStorage.getItem("access_token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -41,14 +43,17 @@ apiClient.interceptors.response.use(
         );
 
         // Update access token
-        localStorage.setItem("access_token", data.data.access_token);
+        setCookie("access_token", data.data.access_token, {
+          maxAge: 60 * 60, // 1 hour
+        });
+        // localStorage.setItem("access_token", data.data.access_token);
 
         // Retry original request
         originalRequest.headers.Authorization = `Bearer ${data.data.access_token}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
         // Refresh failed, redirect to login
-        localStorage.removeItem("access_token");
+        // localStorage.removeItem("access_token");
         window.location.href = "/auth/login";
         return Promise.reject(refreshError);
       }

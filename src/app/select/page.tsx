@@ -56,35 +56,42 @@ export default function OrganizationSelectPage() {
         // const response = await apiClient.get('/user/organizations');
         // setOrganizations(response.data);
 
-        // Mock data
-        setTimeout(() => {
-          setOrganizations([
-            {
-              id: "1",
-              name: "Acme Corp",
-              role: "Owner",
-              memberCount: 24,
-              plan: "Pro",
-              lastActive: "2 hours ago",
-            },
-            {
-              id: "2",
-              name: "Tech Solutions",
-              role: "Admin",
-              memberCount: 8,
-              plan: "Starter",
-            },
-            {
-              id: "3",
-              name: "Design Studio",
-              role: "Member",
-              memberCount: 15,
-              plan: "Pro",
-              lastActive: "1 day ago",
-            },
-          ]);
+        const organizations = localStorage.getItem("organizations");
+        if (organizations) {
+          setOrganizations(JSON.parse(organizations));
           setLoading(false);
-        }, 800);
+          return;
+        }
+
+        // Mock data
+        // setTimeout(() => {
+        //   setOrganizations([
+        //     {
+        //       id: "1",
+        //       name: "Acme Corp",
+        //       role: "Owner",
+        //       memberCount: 24,
+        //       plan: "Pro",
+        //       lastActive: "2 hours ago",
+        //     },
+        //     {
+        //       id: "2",
+        //       name: "Tech Solutions",
+        //       role: "Admin",
+        //       memberCount: 8,
+        //       plan: "Starter",
+        //     },
+        //     {
+        //       id: "3",
+        //       name: "Design Studio",
+        //       role: "Member",
+        //       memberCount: 15,
+        //       plan: "Pro",
+        //       lastActive: "1 day ago",
+        //     },
+        //   ]);
+        //   setLoading(false);
+        // }, 800);
       } catch (error) {
         addToast("error", "Error", "Failed to load organizations");
         setLoading(false);
@@ -126,17 +133,6 @@ export default function OrganizationSelectPage() {
         return "secondary";
       default:
         return "default";
-    }
-  };
-
-  const getPlanColor = (plan: string) => {
-    switch (plan.toLowerCase()) {
-      case "pro":
-        return "secondary";
-      case "enterprise":
-        return "primary";
-      default:
-        return "success";
     }
   };
 
@@ -192,14 +188,14 @@ export default function OrganizationSelectPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredOrgs.map((org) => (
-              <div key={org.id}>
+              <div key={org.id} className="bg-gray-500">
                 <Card
                   isPressable
                   isHoverable
                   className={`w-full transition-all ${
                     selectedOrg === org.id ? "ring-2 ring-primary" : ""
                   }`}
-                  shadow="sm"
+                  shadow="lg"
                   radius="lg"
                 >
                   <CardHeader className="flex gap-3 pb-3">
@@ -224,33 +220,9 @@ export default function OrganizationSelectPage() {
                         >
                           {org.role}
                         </Chip>
-                        <Chip
-                          size="sm"
-                          color={getPlanColor(org.plan)}
-                          variant="flat"
-                        >
-                          {org.plan}
-                        </Chip>
                       </div>
                     </div>
                   </CardHeader>
-
-                  <Divider />
-
-                  <CardBody className="py-4">
-                    <div className="space-y-2 text-small">
-                      <div className="flex items-center gap-2 text-default-600">
-                        <Users size={16} className="text-default-400" />
-                        <span className="font-medium">{org.memberCount}</span>
-                        <span>members</span>
-                      </div>
-                      {org.lastActive && (
-                        <p className="text-tiny text-default-500">
-                          Last active: {org.lastActive}
-                        </p>
-                      )}
-                    </div>
-                  </CardBody>
                 </Card>
 
                 <Divider />
@@ -292,7 +264,7 @@ export default function OrganizationSelectPage() {
                       Create New Organization
                     </h3>
                     <p className="text-small text-default-500">
-                      Start a new organization and invite team members
+                      Start a new organization and register members
                     </p>
                   </div>
                 </CardBody>
@@ -340,7 +312,7 @@ export default function OrganizationSelectPage() {
             Need help or looking for a different organization?{" "}
             <Button
               variant="light"
-              color="primary"
+              color="default"
               size="sm"
               className="p-0 h-auto min-w-0"
             >
