@@ -7,12 +7,7 @@ import {
   IsArray,
   Min,
 } from 'class-validator';
-
-enum BillingInterval {
-  WEEKLY = 'weekly',
-  MONTHLY = 'monthly',
-  YEARLY = 'yearly',
-}
+import { PlanInterval } from 'src/database/entities/member-plan.entity';
 
 export class CreatePlanDto {
   @ApiProperty({
@@ -50,8 +45,8 @@ export class CreatePlanDto {
     description: 'Interval',
     example: 'monthly',
   })
-  @IsEnum(BillingInterval)
-  interval: BillingInterval;
+  @IsEnum(PlanInterval)
+  interval: PlanInterval;
 
   @ApiProperty({
     description: 'Interval count',

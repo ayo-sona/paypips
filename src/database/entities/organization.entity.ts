@@ -13,6 +13,7 @@ import { OrganizationSubscription } from './organization-subscription.entity';
 import { MemberPlan } from './member-plan.entity';
 import { OrganizationInvite } from './organization-invite.entity';
 import { MemberSubscription } from './member-subscription.entity';
+import { OrganizationPlan } from './organization_plan.entity';
 
 @Entity('organizations')
 export class Organization {
@@ -72,6 +73,9 @@ export class Organization {
 
   @OneToMany(() => MemberPlan, (plan) => plan.organization)
   member_plans: MemberPlan[];
+
+  @OneToMany(() => OrganizationPlan, (plan) => plan.organization)
+  organization_plans: OrganizationPlan[];
 
   @OneToMany(() => MemberSubscription, (sub) => sub.organization)
   memberSubscriptions: MemberSubscription[];

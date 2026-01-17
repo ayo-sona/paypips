@@ -10,6 +10,23 @@ import {
 import { Organization } from './organization.entity';
 import { Invoice } from './invoice.entity';
 import { User } from './user.entity';
+import { IsEnum } from 'class-validator';
+
+export enum PaymentStatus {
+  PENDING = 'pending',
+  SUCCESS = 'success',
+  FAILED = 'failed',
+}
+
+export enum PaymentProvider {
+  PAYSTACK = 'paystack',
+  STRIPE = 'stripe',
+}
+
+export enum PaymentPayerType {
+  ORGANIZATION = 'organization',
+  USER = 'user',
+}
 
 @Entity('payments')
 export class Payment {
@@ -26,7 +43,8 @@ export class Payment {
   invoice_id: string;
 
   @Column({ type: 'text' })
-  payer_type: string;
+  @IsEnum(PaymentPayerType)
+  payer_type: PaymentPayerType;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: number;
@@ -35,13 +53,14 @@ export class Payment {
   currency: string;
 
   @Column({ type: 'text' })
-  provider: string;
+  @IsEnum(PaymentProvider)
+  provider: PaymentProvider;
 
   @Column({ type: 'text', unique: true, nullable: true })
   provider_reference: string;
 
-  @Column({ type: 'text', default: 'pending' })
-  status: string;
+  @Column({ type: 'text', default: PaymentStatus.PENDING })
+  status: PaymentStatus;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;

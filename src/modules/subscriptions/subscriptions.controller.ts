@@ -11,12 +11,11 @@ import {
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CurrentOrganization } from '../../common/decorators/organization.decorator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+import { FindAllMemberSubscriptionsDto } from './dto/find-all-subscriptions.dto';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { MemberSubscription } from 'src/database/entities';
 
-@Controller('subscriptions')
+@Controller('members/subscriptions')
 @UseGuards(JwtAuthGuard)
 export class SubscriptionsController {
   constructor(private readonly subscriptionsService: SubscriptionsService) {}
@@ -30,9 +29,9 @@ export class SubscriptionsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 409, description: 'Subscription already exists' })
-  @Post()
+  @Post('/:organizationId')
   create(
-    @CurrentOrganization() organizationId: string,
+    @Param('organizationId') organizationId: string,
     @Body() createSubscriptionDto: CreateSubscriptionDto,
   ) {
     return this.subscriptionsService.createMemberSubscription(
@@ -61,16 +60,15 @@ export class SubscriptionsController {
     },
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  @Get()
+  @Get('/:organizationId')
   findAll(
-    @CurrentOrganization() organizationId: string,
-    @Query() paginationDto: PaginationDto,
-    @Query('status') status?: string,
+    @Param('organizationId') organizationId: string,
+    @Query() findAllMemberSubscriptionsDto: FindAllMemberSubscriptionsDto,
   ) {
+    // console.log('findAllMemberSubscriptionsDto', findAllMemberSubscriptionsDto);
     return this.subscriptionsService.findAllMemberSubscriptions(
       organizationId,
-      paginationDto,
-      status,
+      findAllMemberSubscriptionsDto,
     );
   }
 
@@ -83,12 +81,12 @@ export class SubscriptionsController {
   //   })
   //   @ApiResponse({ status: 400, description: 'Bad Request' })
   //   @ApiResponse({ status: 404, description: 'Subscription not found' })
-  //   @Get(':id')
+  //   @Get(':organizationId/:subscriptionId')
   //   findOne(
   //     @CurrentOrganization() organizationId: string,
-  //     @Param('id') id: string,
+  //     @Param('subscriptionId') subscriptionId: string,
   //   ) {
-  //     return this.subscriptionsService.findOneMemberSubscription(organizationId, id);
+  //     return this.subscriptionsService.findOneMemberSubscription(organizationId, subscriptionId);
   //   }
 
   @ApiBearerAuth('JWT-auth')
@@ -96,10 +94,10 @@ export class SubscriptionsController {
   @ApiResponse({ status: 200, description: 'Subscription paused successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 404, description: 'Subscription not found' })
-  @Patch(':id/pause')
+  @Patch('/:organizationId/:subscriptionId/pause')
   pause(
-    @CurrentOrganization() organizationId: string,
-    @Param('id') subscriptionId: string,
+    @Param('organizationId') organizationId: string,
+    @Param('subscriptionId') subscriptionId: string,
   ) {
     return this.subscriptionsService.pause(organizationId, subscriptionId);
   }
@@ -113,10 +111,10 @@ export class SubscriptionsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 404, description: 'Subscription not found' })
-  @Patch(':id/resume')
+  @Patch('/:organizationId/:subscriptionId/resume')
   resume(
-    @CurrentOrganization() organizationId: string,
-    @Param('id') subscriptionId: string,
+    @Param('organizationId') organizationId: string,
+    @Param('subscriptionId') subscriptionId: string,
   ) {
     return this.subscriptionsService.resume(organizationId, subscriptionId);
   }
@@ -130,10 +128,10 @@ export class SubscriptionsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 404, description: 'Subscription not found' })
-  @Patch(':id/cancel')
+  @Patch('/:organizationId/:subscriptionId/cancel')
   cancel(
-    @CurrentOrganization() organizationId: string,
-    @Param('id') subscriptionId: string,
+    @Param('organizationId') organizationId: string,
+    @Param('subscriptionId') subscriptionId: string,
   ) {
     return this.subscriptionsService.cancel(organizationId, subscriptionId);
   }
@@ -147,8 +145,14 @@ export class SubscriptionsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 404, description: 'Subscription not found' })
-  @Post(':id/renew')
-  renew(@Param('id') subscriptionId: string) {
-    return this.subscriptionsService.renewMemberSubscription(subscriptionId);
+  @Post('/:organizationId/:subscriptionId/renew')
+  renew(
+    @Param('organizationId') organizationId: string,
+    @Param('subscriptionId') subscriptionId: string,
+  ) {
+    return this.subscriptionsService.renewMemberSubscription(
+      organizationId,
+      subscriptionId,
+    );
   }
 }

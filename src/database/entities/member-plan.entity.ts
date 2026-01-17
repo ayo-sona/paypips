@@ -12,6 +12,14 @@ import { Organization } from './organization.entity';
 import { MemberSubscription } from './member-subscription.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
+export enum PlanInterval {
+  MONTHLY = 'monthly',
+  YEARLY = 'yearly',
+  WEEKLY = 'weekly',
+  BIWEEKLY = 'biweekly',
+  QUARTERLY = 'quarterly',
+}
+
 @Entity('member_plans')
 export class MemberPlan {
   @PrimaryGeneratedColumn('uuid')
@@ -38,10 +46,10 @@ export class MemberPlan {
 
   @ApiProperty({
     description: 'Plan interval',
-    example: 'month',
+    example: PlanInterval.MONTHLY,
   })
   @Column({ type: 'text' })
-  interval: string;
+  interval: PlanInterval;
 
   @ApiProperty({
     description: 'Plan interval count',

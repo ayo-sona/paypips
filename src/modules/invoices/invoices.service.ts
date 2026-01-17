@@ -241,7 +241,7 @@ export class InvoicesService {
       this.invoiceRepository.count({
         where: {
           issuer_org_id: organizationId,
-          status: In([InvoiceStatus.PENDING, InvoiceStatus.OVERDUE]),
+          status: In([InvoiceStatus.PENDING, InvoiceStatus.FAILED]),
           due_date: LessThan(new Date()),
         },
       }),

@@ -7,7 +7,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Payment } from '../../database/entities/payment.entity';
+import {
+  Payment,
+  PaymentProvider,
+  PaymentStatus,
+} from '../../database/entities/payment.entity';
 import { Invoice, InvoiceStatus } from '../../database/entities/invoice.entity';
 import { Member } from '../../database/entities/member.entity';
 import { PaystackService } from './paystack.service';
@@ -65,9 +69,9 @@ export class PaymentsService {
       payer_user_id: invoice.billed_user_id,
       amount: invoice.amount,
       currency: invoice.currency,
-      provider: 'paystack',
+      provider: PaymentProvider.PAYSTACK,
       provider_reference: reference,
-      status: 'pending',
+      status: PaymentStatus.PENDING,
       metadata: {
         ...initializePaymentDto.metadata,
         invoice_number: invoice.invoice_number,
@@ -138,7 +142,7 @@ export class PaymentsService {
 
     // Update payment status
     if (data.status === 'success') {
-      payment.status = 'success';
+      payment.status = PaymentStatus.SUCCESS;
       payment.metadata = {
         ...payment.metadata,
         paystack_response: data,
@@ -152,7 +156,7 @@ export class PaymentsService {
         await this.invoiceRepository.save(payment.invoice);
       }
     } else {
-      payment.status = 'failed';
+      payment.status = PaymentStatus.FAILED;
       payment.metadata = {
         ...payment.metadata,
         paystack_response: data,
@@ -164,7 +168,7 @@ export class PaymentsService {
 
     return {
       message:
-        payment.status === 'success'
+        payment.status === PaymentStatus.SUCCESS
           ? 'Payment verified successfully'
           : 'Payment failed',
       data: {
@@ -257,16 +261,19 @@ export class PaymentsService {
           where: { payer_org_id: organizationId },
         }),
         this.paymentRepository.count({
-          where: { payer_org_id: organizationId, status: 'success' },
+          where: {
+            payer_org_id: organizationId,
+            status: PaymentStatus.SUCCESS,
+          },
         }),
         this.paymentRepository.count({
-          where: { payer_org_id: organizationId, status: 'failed' },
+          where: { payer_org_id: organizationId, status: PaymentStatus.FAILED },
         }),
         this.paymentRepository.query(
           `SELECT COALESCE(SUM(amount), 0) as total
            FROM payments
-           WHERE payer_org_id = $1 AND status = 'success'`,
-          [organizationId],
+           WHERE payer_org_id = $1 AND status = $2`,
+          [organizationId, PaymentStatus.SUCCESS],
         ),
       ]);
 

@@ -4,11 +4,14 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { Organization } from './organization.entity';
 
-@Entity('plans')
-export class Plan {
+@Entity('organization_plans')
+export class OrganizationPlan {
   @ApiProperty({
     description: 'Plan ID',
     example: '123e4567-e89b-12d3-a456-426614174000',
@@ -99,4 +102,10 @@ export class Plan {
   })
   @UpdateDateColumn({ type: 'timestamp with time zone' })
   updated_at: Date;
+
+  @ManyToOne(() => Organization, (org) => org.member_plans, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'organization_id' })
+  organization: Organization;
 }

@@ -17,7 +17,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentOrganization } from '../../common/decorators/organization.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Plan } from 'src/database/entities';
+import { MemberPlan } from 'src/database/entities';
 
 @Controller('plans')
 @UseGuards(JwtAuthGuard)
@@ -29,7 +29,7 @@ export class PlansController {
   @ApiResponse({
     status: 201,
     description: 'Plan created successfully',
-    type: Plan,
+    type: MemberPlan,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Post()
@@ -48,7 +48,7 @@ export class PlansController {
     content: {
       'application/json': {
         example: {
-          data: [Plan],
+          data: [MemberPlan],
           meta: {
             page: 1,
             limit: 10,
@@ -73,7 +73,7 @@ export class PlansController {
   @ApiResponse({
     status: 200,
     description: 'Active plans retrieved successfully',
-    type: Plan['string'],
+    type: MemberPlan['string'],
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Get('active')
@@ -86,7 +86,7 @@ export class PlansController {
   @ApiResponse({
     status: 200,
     description: 'Plan retrieved successfully',
-    type: Plan,
+    type: MemberPlan,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Plan not found' })
@@ -103,7 +103,7 @@ export class PlansController {
   @ApiResponse({
     status: 200,
     description: 'Plan updated successfully',
-    type: Plan,
+    type: MemberPlan,
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -126,7 +126,7 @@ export class PlansController {
   @ApiResponse({
     status: 200,
     description: 'Plan activation toggled successfully',
-    type: Plan,
+    type: MemberPlan,
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

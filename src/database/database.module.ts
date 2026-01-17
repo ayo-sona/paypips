@@ -20,8 +20,8 @@ import * as entities from './entities';
           // entities: Object.values(entities),
           entities: [__dirname + '/../**/*.entity{.ts,.js}'], // This will auto-load all entity files
           autoLoadEntities: true,
-          synchronize: configService.get('app.nodeEnv') === 'development',
-          // synchronize: false,
+          // synchronize: configService.get('app.nodeEnv') === 'development',
+          synchronize: false,
           logging: configService.get('app.nodeEnv') === 'development',
           ssl: {
             rejectUnauthorized: false,

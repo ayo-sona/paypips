@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   UseGuards,
+  Ip,
 } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
@@ -43,14 +44,16 @@ export class OrganizationsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Organization not found' })
   @ApiOperation({ summary: 'Select organization' })
-  @Get('/select/:id')
+  @Get('/select/:organizationId')
   async selectOrganization(
-    @Param('id') organizationId: string,
+    @Param('organizationId') organizationId: string,
     @CurrentUser() user: User,
+    @Ip() ipAddress: string,
   ) {
     return this.organizationsService.selectOrganization(
       user.id,
       organizationId,
+      ipAddress,
     );
   }
 
@@ -88,9 +91,9 @@ export class OrganizationsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiOperation({ summary: 'Get team members' })
-  @Get('team')
-  async getTeamMembers(@CurrentOrganization() organizationId: string) {
-    return this.organizationsService.getStaffMembers(organizationId);
+  @Get('team/:organizationId')
+  async getTeamMembers(@Param('organizationId') organizationId: string) {
+    return this.organizationsService.getTeamMembers(organizationId);
   }
 
   @UseGuards(JwtAuthGuard)

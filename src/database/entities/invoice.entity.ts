@@ -12,13 +12,19 @@ import { Organization } from './organization.entity';
 import { User } from './user.entity';
 import { Payment } from './payment.entity';
 import { MemberSubscription } from './member-subscription.entity';
+import { IsEnum } from 'class-validator';
+import { PaymentProvider } from './payment.entity';
 
 export enum InvoiceStatus {
   PENDING = 'pending',
   PAID = 'paid',
   CANCELLED = 'cancelled',
-  OVERDUE = 'overdue',
   FAILED = 'failed',
+}
+
+export enum InvoiceBilledType {
+  ORGANIZATION = 'organization',
+  USER = 'user',
 }
 
 @Entity('invoices')
@@ -47,8 +53,9 @@ export class Invoice {
   @Column({ type: 'text', default: 'NGN' })
   currency: string;
 
-  @Column({ type: 'text', nullable: true })
-  payment_provider: string;
+  @Column({ type: 'text' })
+  @IsEnum(PaymentProvider)
+  payment_provider: PaymentProvider;
 
   @Column({ type: 'text', nullable: true })
   provider_reference: string;
@@ -71,11 +78,9 @@ export class Invoice {
   @UpdateDateColumn({ type: 'timestamp with time zone' })
   updated_at: Date;
 
-  @Column({ type: 'text', nullable: true })
-  issuer_type: string;
-
-  @Column({ type: 'text', nullable: true })
-  billed_type: string;
+  @Column({ type: 'text' })
+  @IsEnum(InvoiceBilledType)
+  billed_type: InvoiceBilledType;
 
   @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'issuer_org_id' })

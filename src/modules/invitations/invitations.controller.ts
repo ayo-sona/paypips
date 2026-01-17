@@ -15,10 +15,10 @@ import { InviteStaffDto } from './dto/invite-staff.dto';
 
 @ApiTags('Invitations')
 @Controller('invitations')
-@UseGuards(JwtAuthGuard)
 export class InvitationsController {
   constructor(private readonly invitationsService: InvitationsService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   @ApiBearerAuth('JWT-auth')
   @ApiBody({ type: InviteStaffDto })

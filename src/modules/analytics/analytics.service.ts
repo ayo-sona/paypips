@@ -6,7 +6,11 @@ import {
   SubscriptionStatus,
 } from '../../database/entities/member-subscription.entity';
 import { Invoice } from '../../database/entities/invoice.entity';
-import { Payment } from '../../database/entities/payment.entity';
+import {
+  Payment,
+  PaymentPayerType,
+  PaymentStatus,
+} from '../../database/entities/payment.entity';
 import { Member } from '../../database/entities/member.entity';
 import { MemberPlan } from '../../database/entities/member-plan.entity';
 import {
@@ -18,6 +22,7 @@ import {
   PlanPerformanceData,
 } from './interfaces/analytics.interface';
 import { AnalyticsQueryDto, TimePeriod } from './dto/analytics-query.dto';
+import { differenceInDays, parseISO } from 'date-fns';
 
 @Injectable()
 export class AnalyticsService {
@@ -146,7 +151,7 @@ export class AnalyticsService {
         created_at: LessThan(startDate),
         organization_user: { organization_id: organizationId },
       },
-      relations: ['organization_users'],
+      relations: ['organization_user'],
     });
 
     // Get churned subscriptions in period
@@ -181,16 +186,18 @@ export class AnalyticsService {
     const totalRevenueResult = await this.paymentRepository
       .createQueryBuilder('payment')
       .select('COALESCE(SUM(amount), 0)', 'total')
-      .where('organization_id = :orgId', { orgId: organizationId })
-      .andWhere('status = :status', { status: 'success' })
+      .where('payer_type = :payer_type', { payer_type: PaymentPayerType.USER })
+      .andWhere('payer_org_id = :orgId', { orgId: organizationId })
+      .andWhere('status = :status', { status: PaymentStatus.SUCCESS })
       .getRawOne();
 
     // Period revenue
     const periodRevenueResult = await this.paymentRepository
       .createQueryBuilder('payment')
       .select('COALESCE(SUM(amount), 0)', 'total')
-      .where('organization_id = :orgId', { orgId: organizationId })
-      .andWhere('status = :status', { status: 'success' })
+      .where('payer_type = :payer_type', { payer_type: PaymentPayerType.USER })
+      .andWhere('payer_org_id = :orgId', { orgId: organizationId })
+      .andWhere('status = :status', { status: PaymentStatus.SUCCESS })
       .andWhere('created_at BETWEEN :start AND :end', {
         start: startDate,
         end: endDate,
@@ -205,8 +212,9 @@ export class AnalyticsService {
     const previousRevenueResult = await this.paymentRepository
       .createQueryBuilder('payment')
       .select('COALESCE(SUM(amount), 0)', 'total')
-      .where('organization_id = :orgId', { orgId: organizationId })
-      .andWhere('status = :status', { status: 'success' })
+      .where('payer_type = :payer_type', { payer_type: PaymentPayerType.USER })
+      .andWhere('payer_org_id = :orgId', { orgId: organizationId })
+      .andWhere('status = :status', { status: PaymentStatus.SUCCESS })
       .andWhere('created_at BETWEEN :start AND :end', {
         start: previousStart,
         end: previousEnd,
@@ -224,8 +232,9 @@ export class AnalyticsService {
     // Average transaction value
     const transactionCount = await this.paymentRepository.count({
       where: {
+        payer_type: PaymentPayerType.USER,
         payer_org_id: organizationId,
-        status: 'success',
+        status: PaymentStatus.SUCCESS,
         created_at: Between(startDate, endDate),
       },
     });
@@ -255,7 +264,7 @@ export class AnalyticsService {
         created_at: Between(startDate, endDate),
         organization_user: { organization_id: organizationId },
       },
-      relations: ['organization_users'],
+      relations: ['organization_user'],
     });
 
     // Churned members (canceled subscriptions)
@@ -270,7 +279,7 @@ export class AnalyticsService {
     // Total members
     const totalMembers = await this.memberRepository.count({
       where: { organization_user: { organization_id: organizationId } },
-      relations: ['organization_users'],
+      relations: ['organization_user'],
     });
 
     return {
@@ -292,28 +301,30 @@ export class AnalyticsService {
     const [total, successful, failed, pending] = await Promise.all([
       this.paymentRepository.count({
         where: {
+          payer_type: PaymentPayerType.USER,
           payer_org_id: organizationId,
           created_at: Between(startDate, endDate),
         },
       }),
       this.paymentRepository.count({
         where: {
+          payer_type: PaymentPayerType.USER,
           payer_org_id: organizationId,
-          status: 'success',
+          status: PaymentStatus.SUCCESS,
           created_at: Between(startDate, endDate),
         },
       }),
       this.paymentRepository.count({
         where: {
           payer_org_id: organizationId,
-          status: 'failed',
+          status: PaymentStatus.FAILED,
           created_at: Between(startDate, endDate),
         },
       }),
       this.paymentRepository.count({
         where: {
           payer_org_id: organizationId,
-          status: 'pending',
+          status: PaymentStatus.PENDING,
           created_at: Between(startDate, endDate),
         },
       }),
@@ -343,16 +354,28 @@ export class AnalyticsService {
         where: { organization_id: organizationId },
       }),
       this.memberSubscriptionRepository.count({
-        where: { organization_id: organizationId, status: 'active' },
+        where: {
+          organization_id: organizationId,
+          status: SubscriptionStatus.ACTIVE,
+        },
       }),
       this.memberSubscriptionRepository.count({
-        where: { organization_id: organizationId, status: 'expired' },
+        where: {
+          organization_id: organizationId,
+          status: SubscriptionStatus.EXPIRED,
+        },
       }),
       this.memberSubscriptionRepository.count({
-        where: { organization_id: organizationId, status: 'canceled' },
+        where: {
+          organization_id: organizationId,
+          status: SubscriptionStatus.CANCELED,
+        },
       }),
       this.memberSubscriptionRepository.count({
-        where: { organization_id: organizationId, status: 'paused' },
+        where: {
+          organization_id: organizationId,
+          status: SubscriptionStatus.PAUSED,
+        },
       }),
     ]);
 
@@ -382,14 +405,21 @@ export class AnalyticsService {
     queryDto: AnalyticsQueryDto,
   ): Promise<RevenueChartData[]> {
     const { startDate, endDate } = this.getDateRange(queryDto);
-    const days = Math.ceil(
-      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    // const days = Math.ceil(
+    //   (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    // );
+
+    // If your dates are strings
+    // const days = differenceInDays(parseISO(endDate), parseISO(startDate));
+
+    // If your dates are already Date objects
+    const days = differenceInDays(endDate, startDate);
+    console.log('days', days);
 
     const chartData: RevenueChartData[] = [];
 
     // Generate data points for each day
-    for (let i = 0; i < days; i++) {
+    for (let i = 0; i <= days; i++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
 
@@ -401,9 +431,12 @@ export class AnalyticsService {
           .createQueryBuilder('payment')
           .select('COALESCE(SUM(amount), 0)', 'total')
           .where('payer_org_id = :orgId', { orgId: organizationId })
-          .andWhere('status = :status', { status: 'success' })
+          .andWhere('payer_type = :payer_type', {
+            payer_type: PaymentPayerType.USER,
+          })
+          .andWhere('status = :status', { status: PaymentStatus.SUCCESS })
           .andWhere('created_at >= :start', { start: date })
-          .andWhere('created_at < :end', { end: nextDate })
+          .andWhere('created_at <= :end', { end: nextDate })
           .getRawOne(),
         this.memberSubscriptionRepository.count({
           where: {
@@ -416,6 +449,7 @@ export class AnalyticsService {
             organization_user: { organization_id: organizationId },
             created_at: Between(date, nextDate),
           },
+          relations: ['organization_user'],
         }),
       ]);
 
@@ -451,12 +485,15 @@ export class AnalyticsService {
 
       // Calculate revenue from this plan
       const revenueResult = await this.paymentRepository
-        .createQueryBuilder('payments')
+        .createQueryBuilder('payment')
         .innerJoin('payment.invoice', 'invoices')
-        .innerJoin('invoice.member_subscription', 'member_subscriptions')
+        .innerJoin('invoices.member_subscription', 'member_subscriptions')
         .select('COALESCE(SUM(payment.amount), 0)', 'total')
         .where('member_subscriptions.plan_id = :planId', { planId: plan.id })
-        .andWhere('payment.status = :status', { status: 'success' })
+        .andWhere('payment.status = :status', { status: PaymentStatus.SUCCESS })
+        .andWhere('payment.payer_type = :payer_type', {
+          payer_type: PaymentPayerType.USER,
+        })
         .getRawOne();
 
       // Conversion rate (active / total created)
@@ -486,18 +523,21 @@ export class AnalyticsService {
     const topMembers = await this.paymentRepository
       .createQueryBuilder('payment')
       .select('payment.payer_user_id', 'member_id')
-      .addSelect('payer_user.first_name', 'first_name')
-      .addSelect('payer_user.last_name', 'last_name')
-      .addSelect('payer_user.email', 'email')
+      .addSelect('users.first_name', 'first_name')
+      .addSelect('users.last_name', 'last_name')
+      .addSelect('users.email', 'email')
       .addSelect('COALESCE(SUM(payment.amount), 0)', 'total_spent')
       .addSelect('COUNT(payment.id)', 'payment_count')
-      .innerJoin('payment.payer_user', 'user')
+      .innerJoin('payment.payer_user', 'users')
       .where('payment.payer_org_id = :orgId', { orgId: organizationId })
-      .andWhere('payment.status = :status', { status: 'success' })
+      .andWhere('payment.status = :status', { status: PaymentStatus.SUCCESS })
+      .andWhere('payment.payer_type = :payer_type', {
+        payer_type: PaymentPayerType.USER,
+      })
       .groupBy('payment.payer_user_id')
-      .addGroupBy('payer_user_id.first_name')
-      .addGroupBy('payer_user_id.last_name')
-      .addGroupBy('payer_user_id.email')
+      .addGroupBy('users.first_name')
+      .addGroupBy('users.last_name')
+      .addGroupBy('users.email')
       .orderBy('total_spent', 'DESC')
       .limit(limit)
       .getRawMany();

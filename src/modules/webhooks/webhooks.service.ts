@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import { Payment } from '../../database/entities/payment.entity';
+import { Payment, PaymentStatus } from '../../database/entities/payment.entity';
 import { Invoice, InvoiceStatus } from '../../database/entities/invoice.entity';
 import {
   MemberSubscription,
@@ -107,7 +107,7 @@ export class WebhooksService {
     }
 
     // Update payment status
-    payment.status = 'success';
+    payment.status = PaymentStatus.SUCCESS;
     payment.metadata = {
       ...payment.metadata,
       webhook_data: data,
@@ -176,7 +176,7 @@ export class WebhooksService {
     }
 
     // Update payment status
-    payment.status = 'failed';
+    payment.status = PaymentStatus.FAILED;
     payment.metadata = {
       ...payment.metadata,
       webhook_data: data,

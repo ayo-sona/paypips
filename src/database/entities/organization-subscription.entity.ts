@@ -9,7 +9,7 @@ import {
   ManyToOne,
 } from 'typeorm';
 import { Organization } from './organization.entity';
-import { Plan } from './plan.entity';
+import { OrganizationPlan } from './organization_plan.entity';
 
 @Entity('organization_subscriptions')
 export class OrganizationSubscription {
@@ -58,7 +58,7 @@ export class OrganizationSubscription {
   @JoinColumn({ name: 'organization_id' })
   organization: Organization;
 
-  @ManyToOne(() => Plan)
+  @ManyToOne(() => OrganizationPlan)
   @JoinColumn({ name: 'plan_id' })
-  plan: Plan;
+  plan: OrganizationPlan;
 }

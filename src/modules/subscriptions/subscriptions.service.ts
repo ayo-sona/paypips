@@ -12,6 +12,7 @@ import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { generateInvoiceNumber } from '../../common/utils/invoice-number.util';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
 import { MemberPlan } from '../../database/entities/member-plan.entity';
+import { FindAllMemberSubscriptionsDto } from './dto/find-all-subscriptions.dto';
 
 @Injectable()
 export class SubscriptionsService {
@@ -123,15 +124,14 @@ export class SubscriptionsService {
 
   async findAllMemberSubscriptions(
     organizationId: string,
-    paginationDto: PaginationDto,
-    status?: string,
+    findAllMemberSubscriptionsDto: FindAllMemberSubscriptionsDto,
   ) {
-    const { page = 1, limit = 10 } = paginationDto;
+    const { page = 1, limit = 10 } = findAllMemberSubscriptionsDto;
     const skip = (page - 1) * limit;
 
     const whereCondition: any = { organization_id: organizationId };
-    if (status) {
-      whereCondition.status = status;
+    if (findAllMemberSubscriptionsDto.status) {
+      whereCondition.status = findAllMemberSubscriptionsDto.status;
     }
 
     const [subscriptions, total] =
@@ -142,6 +142,8 @@ export class SubscriptionsService {
         skip,
         take: limit,
       });
+
+    // console.log('subscriptions', subscriptions);
 
     return {
       message: 'Subscriptions retrieved successfully',
@@ -247,9 +249,12 @@ export class SubscriptionsService {
     };
   }
 
-  async renewMemberSubscription(subscriptionId: string) {
+  async renewMemberSubscription(
+    organizationId: string,
+    subscriptionId: string,
+  ) {
     const subscription = await this.memberSubscriptionRepository.findOne({
-      where: { id: subscriptionId },
+      where: { id: subscriptionId, organization_id: organizationId },
       relations: ['plan', 'member', 'organization'],
     });
 
@@ -276,7 +281,7 @@ export class SubscriptionsService {
 
     // Create new invoice for the renewed period
     await this.createInvoiceForSubscription(
-      subscription.organization_id,
+      organizationId,
       subscription,
       subscription.member,
     );
