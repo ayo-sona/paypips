@@ -67,74 +67,98 @@ export default apiClient;
 
 ///////////////////////////////////
 
-// import { ApiResponse } from '../types/common';
+// import axios, {
+//   AxiosInstance,
+//   AxiosRequestConfig,
+//   InternalAxiosRequestConfig,
+// } from "axios";
+// import { getCookie, setCookie } from "cookies-next";
+// import { NextRequest, NextResponse } from "next/server";
 
-// class ApiClient {
-//   private baseUrl: string;
+// const BASE_URL = `https://paypips.onrender.com/api/v1`;
+// // const BASE_URL = `http://localhost:4000/api/v1`;
 
-//   constructor(baseUrl: string = '/api') {
-//     this.baseUrl = baseUrl;
-//   }
+// // Create axios instance
+// const apiClient: AxiosInstance = axios.create({
+//   baseURL: BASE_URL,
+//   headers: {
+//     "Content-Type": "application/json",
+//   },
+//   withCredentials: true, // Important for sending/receiving cookies
+// });
 
-//   private async request<T>(
-//     endpoint: string,
-//     options: RequestInit = {}
-//   ): Promise<ApiResponse<T>> {
-//     try {
-//       // Get auth token from localStorage
-//       const token = localStorage.getItem('auth_token');
+// // Request interceptor to add auth token
+// apiClient.interceptors.request.use(
+//   (config: InternalAxiosRequestConfig) => {
+//     // Get token from cookies
+//     const token = getCookie("access_token");
 
-//       const response = await fetch(`${this.baseUrl}${endpoint}`, {
-//         ...options,
-//         headers: {
-//           'Content-Type': 'application/json',
-//           ...(token && { Authorization: `Bearer ${token}` }),
-//           ...options.headers,
-//         },
-//       });
-
-//       const data = await response.json();
-
-//       if (!response.ok) {
-//         return {
-//           success: false,
-//           error: data.error || 'An error occurred',
-//         };
-//       }
-
-//       return {
-//         success: true,
-//         data: data,
-//       };
-//     } catch (error) {
-//       return {
-//         success: false,
-//         error: error instanceof Error ? error.message : 'Network error',
-//       };
+//     if (token) {
+//       config.headers = config.headers || {};
+//       config.headers.Authorization = `Bearer ${token}`;
 //     }
-//   }
 
-//   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
-//     return this.request<T>(endpoint, { method: 'GET' });
+//     return config;
+//   },
+//   (error) => {
+//     return Promise.reject(error);
 //   }
+// );
 
-//   async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
-//     return this.request<T>(endpoint, {
-//       method: 'POST',
-//       body: JSON.stringify(data),
-//     });
+// // Response interceptor to handle token refresh
+// apiClient.interceptors.response.use(
+//   (response) => {
+//     return response;
+//   },
+//   async (error) => {
+//     const originalRequest = error.config;
+
+//     // If error is 401 and we haven't tried to refresh yet
+//     if (error.response?.status === 401 && !originalRequest._retry) {
+//       originalRequest._retry = true;
+
+//       try {
+//         // Attempt to refresh the token
+//         const refreshToken = getCookie("refresh_token");
+//         if (refreshToken) {
+//           const { data } = await axios.post(
+//             `${BASE_URL}/auth/refresh`,
+//             {},
+//             { withCredentials: true }
+//           );
+
+//           const { access_token, refresh_token } = data;
+
+//           // Update tokens in cookies
+//           setCookie("access_token", access_token, {
+//             maxAge: 60 * 60, // 1 hour
+//           });
+
+//           if (refresh_token) {
+//             setCookie("refresh_token", refresh_token, {
+//               maxAge: 60 * 60 * 24 * 14, // 14 days
+//               path: "/auth/refresh",
+//               httpOnly: true,
+//             });
+//           }
+
+//           // Update the authorization header
+//           originalRequest.headers.Authorization = `Bearer ${access_token}`;
+
+//           // Retry the original request
+//           return apiClient(originalRequest);
+//         }
+//       } catch (refreshError) {
+//         // If refresh fails, redirect to login
+//         if (typeof window !== "undefined") {
+//           window.location.href = "/auth/login";
+//         }
+//         return Promise.reject(refreshError);
+//       }
+//     }
+
+//     return Promise.reject(error);
 //   }
+// );
 
-//   async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
-//     return this.request<T>(endpoint, {
-//       method: 'PUT',
-//       body: JSON.stringify(data),
-//     });
-//   }
-
-//   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-//     return this.request<T>(endpoint, { method: 'DELETE' });
-//   }
-// }
-
-// export const apiClient = new ApiClient();
+// export default apiClient;

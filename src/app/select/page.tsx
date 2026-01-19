@@ -29,6 +29,8 @@ import {
   Crown,
 } from "lucide-react";
 import { useToast } from "@/features/notifications/useToast";
+import apiClient from "@/lib/apiClient";
+import { setCookie } from "cookies-next";
 
 interface Organization {
   id: string;
@@ -52,46 +54,12 @@ export default function OrganizationSelectPage() {
   useEffect(() => {
     const fetchOrganizations = async () => {
       try {
-        // Replace with actual API call
-        // const response = await apiClient.get('/user/organizations');
-        // setOrganizations(response.data);
-
         const organizations = localStorage.getItem("organizations");
         if (organizations) {
           setOrganizations(JSON.parse(organizations));
           setLoading(false);
           return;
         }
-
-        // Mock data
-        // setTimeout(() => {
-        //   setOrganizations([
-        //     {
-        //       id: "1",
-        //       name: "Acme Corp",
-        //       role: "Owner",
-        //       memberCount: 24,
-        //       plan: "Pro",
-        //       lastActive: "2 hours ago",
-        //     },
-        //     {
-        //       id: "2",
-        //       name: "Tech Solutions",
-        //       role: "Admin",
-        //       memberCount: 8,
-        //       plan: "Starter",
-        //     },
-        //     {
-        //       id: "3",
-        //       name: "Design Studio",
-        //       role: "Member",
-        //       memberCount: 15,
-        //       plan: "Pro",
-        //       lastActive: "1 day ago",
-        //     },
-        //   ]);
-        //   setLoading(false);
-        // }, 800);
       } catch (error) {
         addToast("error", "Error", "Failed to load organizations");
         setLoading(false);
@@ -105,14 +73,20 @@ export default function OrganizationSelectPage() {
     setSelectedOrg(orgId);
 
     try {
-      // Store selected org and redirect
-      localStorage.setItem("selectedOrgId", orgId);
+      // Store selected organization ID
+      localStorage.setItem("selectedOrganizationId", orgId);
 
-      // Simulate API call to switch organization context
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      addToast("success", "Success", "Switched organization successfully");
-      router.push("/enterprise/dashboard");
+      // API call to switch organization context
+      const response = await apiClient.get(`/organizations/select/${orgId}`);
+      console.log(response.data);
+      if (response.data?.data?.accessToken) {
+        // localStorage.setItem("access_token", response.data.data.access_token);
+        setCookie("access_token", response.data.data.accessToken, {
+          maxAge: 60 * 60, // 1 hour
+        });
+        addToast("success", "Success", "Switched organization successfully");
+        router.push("/enterprise/dashboard");
+      }
     } catch (error) {
       addToast("error", "Error", "Failed to switch organization");
       setSelectedOrg(null);
@@ -120,7 +94,7 @@ export default function OrganizationSelectPage() {
   };
 
   const filteredOrgs = organizations.filter((org) =>
-    org.name.toLowerCase().includes(searchQuery.toLowerCase())
+    org.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const getRoleColor = (role: string) => {

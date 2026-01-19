@@ -6,7 +6,7 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public paths that don't require authentication
-  const publicPaths = ["/auth", "/accept-invite"];
+  const publicPaths = ["/auth"];
 
   // If user is not authenticated and trying to access protected routes
   if (!token && !publicPaths.some((path) => pathname.startsWith(path))) {
