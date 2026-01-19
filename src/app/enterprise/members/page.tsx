@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MembersTable } from "../../../components/enterprise/MembersTable";
 import { MemberFilters } from "../../../components/enterprise/MemberFilters";
-import { MOCK_MEMBERS } from "../../../lib/mockData/enterpriseMockdata";
 import { UserPlus } from "lucide-react";
+import { useMembers } from "../../../hooks/useMembers";
 
 export default function MembersPage() {
   const [filters, setFilters] = useState({
@@ -15,58 +15,79 @@ export default function MembersPage() {
     status: "all" as "all" | "active" | "inactive" | "expired",
   });
 
-  // Filter members based on current filters
-  const filteredMembers = MOCK_MEMBERS.filter((member) => {
-    // Search filter - by name or email
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      const matchesSearch =
-        member.name.toLowerCase().includes(searchLower) ||
-        member.email.toLowerCase().includes(searchLower);
-      if (!matchesSearch) return false;
-    }
+  // Hook handles ALL business logic
+  const { data: membersData, isLoading, error } = useMembers(filters.search);
 
-    // Date range filter - by joined date
-    if (filters.dateFrom) {
-      const joinedDate = new Date(member.joinedDate);
-      const fromDate = new Date(filters.dateFrom);
-      if (joinedDate < fromDate) return false;
-    }
+  // Extract members array from response
+  const members = useMemo(() => {
+    if (!membersData) return [];
+    // Handle both { data: [] } and [] formats
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return Array.isArray(membersData) ? membersData : ((membersData as any).data || []);
+  }, [membersData]);
 
-    if (filters.dateTo) {
-      const joinedDate = new Date(member.joinedDate);
-      const toDate = new Date(filters.dateTo + 'T23:59:59'); // End of day
-      if (joinedDate > toDate) return false;
-    }
+  // UI-only: Filter members based on current filters
+  const filteredMembers = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return members.filter((member: any) => {
+      // Date range filter - by joined date
+      if (filters.dateFrom) {
+        const joinedDate = new Date(member.created_at || member.joinedDate);
+        const fromDate = new Date(filters.dateFrom);
+        if (joinedDate < fromDate) return false;
+      }
 
-    // Plan filter - by subscription plan
-    if (filters.plan !== "all") {
-      if (member.planId !== filters.plan) return false;
-    }
+      if (filters.dateTo) {
+        const joinedDate = new Date(member.created_at || member.joinedDate);
+        const toDate = new Date(filters.dateTo + 'T23:59:59');
+        if (joinedDate > toDate) return false;
+      }
 
-    // Status filter - based on your specific definitions:
-    // - active: member.status === 'active' (currently subscribed)
-    // - inactive: member.status === 'inactive' && membershipType === 'self_signup' (self-signup, not renewed)
-    // - expired: member.status === 'expired' && membershipType === 'manual_add' (manual add, not renewed)
-    if (filters.status !== "all") {
-      if (filters.status === "active") {
-        // Active = currently under subscription
-        if (member.status !== "active") return false;
-      } else if (filters.status === "inactive") {
-        // Inactive = self-signup but hasn't renewed (subscription expired)
-        if (member.status !== "inactive" || member.membershipType !== "self_signup") {
-          return false;
-        }
-      } else if (filters.status === "expired") {
-        // Expired = manual add that wasn't renewed
-        if (member.status !== "expired" || member.membershipType !== "manual_add") {
-          return false;
+      // Plan filter - by subscription plan
+      if (filters.plan !== "all") {
+        const memberPlanId = member.subscription_plan || member.plan_id || member.planId;
+        if (memberPlanId !== filters.plan) return false;
+      }
+
+      // Status filter
+      if (filters.status !== "all") {
+        const memberStatus = member.status;
+        if (filters.status === "active") {
+          if (memberStatus !== "active") return false;
+        } else if (filters.status === "inactive") {
+          if (memberStatus !== "inactive") return false;
+        } else if (filters.status === "expired") {
+          if (memberStatus !== "expired") return false;
         }
       }
-    }
 
-    return true;
-  });
+      return true;
+    });
+  }, [members, filters]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500 dark:text-gray-400">Loading members...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="text-red-500 dark:text-red-400 mb-4">
+          Failed to load members
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -91,7 +112,7 @@ export default function MembersPage() {
         filters={filters} 
         onFiltersChange={setFilters}
         filteredCount={filteredMembers.length}
-        totalCount={MOCK_MEMBERS.length}
+        totalCount={members.length}
       />
 
       {/* Members Table */}

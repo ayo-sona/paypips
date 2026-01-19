@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { PlansGrid } from '../../../components/enterprise/PlansGrid';
 import { CreatePlanModal } from '../../../components/enterprise/CreatePlanModal';
-import { MOCK_PLANS } from '../../../lib/mockData/enterpriseMockdata';
+import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useTogglePlan } from '../../../hooks/usePlans';
 import { SubscriptionPlan } from '../../../types/enterprise';
+import { mapPlansToSubscriptionPlans } from '../../../utils/planMapper';
 
 interface PlanFormData {
   name: string;
@@ -16,131 +17,112 @@ interface PlanFormData {
   features: Array<{ id: string; name: string; included: boolean }>;
 }
 
-const STORAGE_KEY = 'enterprise_plans';
-
 export default function PlansPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
-  const [isClient, setIsClient] = useState(false);
-  
-  // Always start with MOCK_PLANS for SSR
-  const [plans, setPlans] = useState<SubscriptionPlan[]>(MOCK_PLANS);
 
-  // Load from localStorage after mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    setIsClient(true);
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          setPlans(JSON.parse(stored));
-        } catch (e) {
-          console.error('Failed to parse stored plans:', e);
-        }
-      }
-    }
-  }, []); // Only run once on mount
+  // Hooks handle ALL business logic - no localStorage, no manual state
+  const { data: plansResponse, isLoading } = usePlans();
+  const createPlan = useCreatePlan();
+  const updatePlan = useUpdatePlan();
+  const deletePlan = useDeletePlan();
+  const togglePlan = useTogglePlan();
 
-  // Save plans to localStorage whenever they change
-  const savePlansToStorage = useCallback((plansToSave: SubscriptionPlan[]) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(plansToSave));
-    }
-  }, []);
+  // Map backend Plan[] to frontend SubscriptionPlan[]
+  const plans = plansResponse?.data ? mapPlansToSubscriptionPlans(plansResponse.data) : [];
 
-  // Sync to localStorage when plans change (only after client mount)
-  useEffect(() => {
-    if (isClient) {
-      savePlansToStorage(plans);
-    }
-  }, [plans, isClient, savePlansToStorage]);
+  // UI-only: Calculate stats from fetched data
+  const stats = {
+    total: plans.length,
+    active: plans.filter(p => p.isActive).length,
+    totalMembers: plans.reduce((sum, p) => sum + (p.memberCount || 0), 0),
+    avgPrice: plans.length > 0 
+      ? plans.reduce((sum, p) => sum + p.price, 0) / plans.length 
+      : 0,
+  };
 
-  // Handle creating new plan
+  // UI-only: Handle modal opening
   const handleCreatePlan = () => {
     setEditingPlan(null);
     setShowCreateModal(true);
   };
 
-  // Handle editing existing plan
   const handleEditPlan = (plan: SubscriptionPlan) => {
     setEditingPlan(plan);
     setShowCreateModal(true);
   };
 
-  // Handle activating/deactivating plan
-  const handleTogglePlanStatus = (planId: string, currentStatus: boolean) => {
-    setPlans(plans.map(p => 
-      p.id === planId 
-        ? { ...p, isActive: !currentStatus, updatedAt: new Date().toISOString() }
-        : p
-    ));
-    console.log(`${currentStatus ? 'Deactivated' : 'Activated'} plan:`, planId);
-    // TODO: Call your API to update plan status
+  // Event handlers - just call hooks (no business logic)
+  const handleTogglePlanStatus = async (planId: string, currentStatus: boolean) => {
+    try {
+      await togglePlan.mutateAsync(planId);
+      console.log(`${currentStatus ? 'Deactivated' : 'Activated'} plan:`, planId);
+    } catch (error) {
+      console.error('Failed to toggle plan status:', error);
+      alert('Failed to update plan status');
+    }
   };
 
-  // Handle deleting plan (completely remove from database)
-  const handleDeletePlan = (planId: string) => {
+  const handleDeletePlan = async (planId: string) => {
     const plan = plans.find(p => p.id === planId);
     if (confirm(`Are you sure you want to permanently delete "${plan?.name}"? This action cannot be undone.`)) {
-      setPlans(plans.filter(p => p.id !== planId));
-      console.log('Deleted plan:', planId);
-      // TODO: Call your API to delete the plan
-    }
-  };
-
-  // Handle saving plan (create or update)
-  const handleSavePlan = (planData: PlanFormData) => {
-    if (editingPlan) {
-      // Update existing plan
-      setPlans(plans.map(p => 
-        p.id === editingPlan.id 
-          ? { 
-              ...p, 
-              name: planData.name,
-              description: planData.description,
-              price: parseFloat(planData.price),
-              duration: planData.duration as 'weekly' | 'monthly' | 'quarterly' | 'yearly',
-              visibility: planData.visibility as 'public' | 'invite_only',
-              features: planData.features,
-              updatedAt: new Date().toISOString() 
-            }
-          : p
-      ));
-      console.log('Updated plan:', editingPlan.id, planData);
-    } else {
-      // Create new plan
-      const newPlan: SubscriptionPlan = {
-        id: `plan_${Date.now()}`,
-        enterpriseId: 'ent_001',
-        name: planData.name,
-        description: planData.description,
-        price: parseFloat(planData.price),
-        currency: 'NGN',
-        duration: planData.duration as 'weekly' | 'monthly' | 'quarterly' | 'yearly',
-        visibility: planData.visibility as 'public' | 'invite_only',
-        features: planData.features,
-        isActive: true,
-        memberCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setPlans([...plans, newPlan]);
-      console.log('Created plan:', newPlan);
-    }
-    setShowCreateModal(false);
-    setEditingPlan(null);
-  };
-
-  // Reset to original mock data (useful for testing)
-  const handleResetPlans = () => {
-    if (confirm('Reset all plans to original mock data? This will delete all your changes.')) {
-      setPlans(MOCK_PLANS);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY);
+      try {
+        await deletePlan.mutateAsync(planId);
+        console.log('Deleted plan:', planId);
+      } catch (error) {
+        console.error('Failed to delete plan:', error);
+        alert('Failed to delete plan');
       }
     }
   };
+
+  const handleSavePlan = async (planData: PlanFormData) => {
+    try {
+      if (editingPlan) {
+        // Update existing plan
+        await updatePlan.mutateAsync({
+          id: editingPlan.id,
+          data: {
+            name: planData.name,
+            description: planData.description,
+            amount: parseFloat(planData.price),
+            currency: 'NGN',
+            interval: planData.duration as 'daily' | 'weekly' | 'monthly' | 'yearly',
+            intervalCount: 1,
+            trialPeriodDays: 0,
+            features: planData.features.map(f => f.name),
+          },
+        });
+        console.log('Updated plan:', editingPlan.id, planData);
+      } else {
+        // Create new plan
+        await createPlan.mutateAsync({
+          name: planData.name,
+          description: planData.description,
+          amount: parseFloat(planData.price),
+          currency: 'NGN',
+          interval: planData.duration as 'daily' | 'weekly' | 'monthly' | 'yearly',
+          intervalCount: 1,
+          trialPeriodDays: 0,
+          features: planData.features.map(f => f.name),
+        });
+        console.log('Created plan:', planData);
+      }
+      setShowCreateModal(false);
+      setEditingPlan(null);
+    } catch (error) {
+      console.error('Failed to save plan:', error);
+      alert('Failed to save plan');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500 dark:text-gray-400">Loading plans...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -155,14 +137,6 @@ export default function PlansPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Reset Button (for development) */}
-          <button
-            onClick={handleResetPlans}
-            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            Reset Plans
-          </button>
-          
           {/* Create Plan Button */}
           <button
             onClick={handleCreatePlan}
@@ -174,30 +148,30 @@ export default function PlansPage() {
         </div>
       </div>
 
-      {/* Stats - suppressHydrationWarning for dynamic values */}
+      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Plans</p>
           <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100" suppressHydrationWarning>
-            {plans.length}
+            {stats.total}
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Active Plans</p>
           <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100" suppressHydrationWarning>
-            {plans.filter(p => p.isActive).length}
+            {stats.active}
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total Members</p>
           <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100" suppressHydrationWarning>
-            {plans.reduce((sum, p) => sum + p.memberCount, 0)}
+            {stats.totalMembers}
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Avg. Price</p>
           <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100" suppressHydrationWarning>
-            ₦{plans.length > 0 ? (plans.reduce((sum, p) => sum + p.price, 0) / plans.length).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 0}
+            ₦{stats.avgPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </p>
         </div>
       </div>

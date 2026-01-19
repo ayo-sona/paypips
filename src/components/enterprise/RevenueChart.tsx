@@ -1,42 +1,41 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { MOCK_PAYMENTS } from '../../lib/mockData/enterpriseMockdata';
+import { useRevenueChart } from '../../hooks/useAnalytics';
 
 export function RevenueChart() {
-  // Generate revenue data from payments
-  const generateRevenueData = () => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth();
-    
-    // Get last 6 months
-    const chartData = [];
-    for (let i = 5; i >= 0; i--) {
-      const monthIndex = (currentMonth - i + 12) % 12;
-      const year = currentMonth - i < 0 ? currentYear - 1 : currentYear;
-      
-      // Get all successful payments for this month
-      const monthPayments = MOCK_PAYMENTS.filter(p => {
-        if (p.status !== 'success') return false;
-        const paymentDate = new Date(p.paidAt || p.createdAt);
-        return paymentDate.getFullYear() === year && paymentDate.getMonth() === monthIndex;
-      });
+  // Hook handles ALL business logic
+  const { data: chartData, isLoading, error } = useRevenueChart();
 
-      const revenue = monthPayments.reduce((sum, p) => sum + p.amount, 0);
-      const memberCount = new Set(monthPayments.map(p => p.memberId)).size;
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <div className="h-80 animate-pulse bg-gray-100 dark:bg-gray-700 rounded" />
+      </div>
+    );
+  }
 
-      chartData.push({
-        month: months[monthIndex],
-        revenue: revenue / 1000, // Convert to thousands for better display
-        members: memberCount,
-      });
-    }
-    
-    return chartData;
-  };
+  if (error || !chartData || chartData.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Revenue Trend
+          </h3>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            Monthly revenue from successful payments (in thousands)
+          </p>
+        </div>
+        <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+          {error ? 'Unable to load revenue data. API endpoint may not be ready.' : 'No revenue data available'}
+        </div>
+      </div>
+    );
+  }
 
-  const data = generateRevenueData();
+  // UI-only: Calculate summary stats
+  const totalRevenue = chartData.reduce((sum: number, d: { revenue?: number }) => sum + (d.revenue || 0), 0);
+  const avgRevenue = chartData.length > 0 ? totalRevenue / chartData.length : 0;
 
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
@@ -50,24 +49,15 @@ export function RevenueChart() {
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-          <XAxis 
-            dataKey="month" 
-            className="text-gray-600 dark:text-gray-400"
-            tick={{ fill: 'currentColor' }}
-          />
-          <YAxis 
-            className="text-gray-600 dark:text-gray-400"
-            tick={{ fill: 'currentColor' }}
-            label={{ value: '₦ (thousands)', angle: -90, position: 'insideLeft' }}
-          />
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+          <XAxis dataKey="month" stroke="#9CA3AF" />
+          <YAxis stroke="#9CA3AF" />
           <Tooltip
             contentStyle={{
-              backgroundColor: 'rgb(31 41 55)',
-              border: 'none',
+              backgroundColor: '#1F2937',
+              border: '1px solid #374151',
               borderRadius: '0.5rem',
-              color: 'white',
             }}
             formatter={(value: number | undefined) => {
               const num = value ?? 0;
@@ -75,27 +65,26 @@ export function RevenueChart() {
             }}
           />
           <Legend />
-          <Bar
-            dataKey="revenue"
-            fill="#10b981"
-            name="Revenue (₦K)"
-            radius={[8, 8, 0, 0]}
-          />
+          <Bar dataKey="revenue" fill="#10b981" name="Revenue (₦K)" />
         </BarChart>
       </ResponsiveContainer>
 
       {/* Summary stats */}
-      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Total (6 months)</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">
-            ₦{(data.reduce((sum, d) => sum + d.revenue, 0)).toFixed(1)}K
+      <div className="mt-6 grid grid-cols-2 gap-4">
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Total (6 months)
+          </p>
+          <p className="mt-1 text-lg font-bold text-gray-900 dark:text-gray-100" suppressHydrationWarning>
+            ₦{totalRevenue.toFixed(1)}K
           </p>
         </div>
-        <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Avg per month</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white">
-            ₦{(data.reduce((sum, d) => sum + d.revenue, 0) / data.length).toFixed(1)}K
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-4">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Avg per month
+          </p>
+          <p className="mt-1 text-lg font-bold text-gray-900 dark:text-gray-100" suppressHydrationWarning>
+            ₦{avgRevenue.toFixed(1)}K
           </p>
         </div>
       </div>

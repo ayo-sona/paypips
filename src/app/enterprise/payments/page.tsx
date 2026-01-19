@@ -1,32 +1,43 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Plus, DollarSign, TrendingUp, CreditCard, Users, AlertCircle } from 'lucide-react';
 import { PaymentsTable } from '../../../components/enterprise/PaymentsTable';
 import { PaymentFilters } from '../../../components/enterprise/PaymentFilters';
-import { MOCK_PAYMENTS } from '../../../lib/mockData/enterpriseMockdata';
-// import { Payment } from '../../../types/enterprise';
-import { DollarSign, TrendingUp, CreditCard, Users } from 'lucide-react';
+import { ManualPaymentModal, ManualPaymentData } from '../../../components/enterprise/ManualPaymentModal';
+import { usePayments, usePaymentStats, useInitializePayment} from '../../../hooks/usePayments';
+import { mapApiPaymentsToUiPayments } from '../../../utils/paymentMapper';
 
 export default function PaymentsPage() {
-  // Only show successful payments by default
-  const successfulPayments = MOCK_PAYMENTS.filter(p => p.status === 'success');
+  const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
   
-  // Filter state managed in parent
+  // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedSource, setSelectedSource] = useState<string>('all');
   const [selectedMethod, setSelectedMethod] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('success');
 
-  // Apply filters
-  const filteredPayments = successfulPayments.filter(payment => {
+  // Hooks handle ALL business logic
+  const { data: paymentsResponse, isLoading, error, refetch } = usePayments(1, 1000, selectedStatus);
+  const { data: stats } = usePaymentStats();
+  const createPayment = useInitializePayment();
+
+  // Transform API payments to match PaymentsTable expected format
+  const payments = useMemo(() => {
+    const apiPayments = paymentsResponse?.data || [];
+    return mapApiPaymentsToUiPayments(apiPayments);
+  }, [paymentsResponse?.data]);
+
+  // UI-only: Apply filters
+  const filteredPayments = payments.filter(payment => {
     // Search filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       const matchesSearch = 
-        payment.memberName.toLowerCase().includes(search) ||
-        (payment.memberEmail && payment.memberEmail.toLowerCase().includes(search)) ||
+        payment.memberName?.toLowerCase().includes(search) ||
+        payment.memberEmail?.toLowerCase().includes(search) ||
         new Date(payment.createdAt).toLocaleDateString().includes(search);
       if (!matchesSearch) return false;
     }
@@ -44,97 +55,148 @@ export default function PaymentsPage() {
     // Method filter
     if (selectedMethod !== 'all' && payment.method !== selectedMethod) return false;
 
-    // Status filter
-    if (selectedStatus !== 'all' && payment.status !== selectedStatus) return false;
-
     return true;
   });
 
-  // Calculate stats from successful payments only
-  const totalRevenue = successfulPayments.reduce((sum, payment) => sum + payment.amount, 0);
-  const paymentsThisMonth = successfulPayments.filter(payment => {
-    const paymentDate = new Date(payment.paidAt || payment.createdAt);
-    const now = new Date();
-    return paymentDate.getMonth() === now.getMonth() && 
-           paymentDate.getFullYear() === now.getFullYear();
-  });
-  const monthlyRevenue = paymentsThisMonth.reduce((sum, payment) => sum + payment.amount, 0);
-  
-  // Platform payments = payments that have a gateway defined
-  const throughPlatform = successfulPayments.filter(p => p.gateway).length;
-  
-  // Manual logs = payments without a gateway
-  const loggedManually = successfulPayments.filter(p => !p.gateway).length;
-
-  const stats = [
+  // UI-only: Calculate stats from fetched data or use backend stats
+  const displayStats = stats ? [
     {
       title: 'Total Revenue',
-      value: `₦${(totalRevenue / 1000).toFixed(1)}K`,
+      value: `₦${(stats.totalRevenue / 1000).toFixed(1)}K`,
       icon: DollarSign,
       color: 'bg-green-500',
       subtext: 'All time'
     },
     {
       title: 'This Month',
-      value: `₦${(monthlyRevenue / 1000).toFixed(1)}K`,
+      value: `₦${(stats.monthlyRevenue / 1000).toFixed(1)}K`,
       icon: TrendingUp,
       color: 'bg-blue-500',
-      subtext: `${paymentsThisMonth.length} payments`
+      subtext: `${stats.monthlyPayments} payments`
     },
     {
       title: 'Platform Payments',
-      value: throughPlatform,
+      value: stats.platformPayments,
       icon: CreditCard,
       color: 'bg-purple-500',
       subtext: 'Online payments'
     },
     {
       title: 'Manual Logs',
-      value: loggedManually,
+      value: stats.manualPayments,
       icon: Users,
       color: 'bg-orange-500',
       subtext: 'Logged by admin'
     },
-  ];
+  ] : [];
+
+  // Event handlers - just call hooks
+  const handleLogManualPayment = async (data: ManualPaymentData) => {
+    try {
+      await createPayment.mutateAsync({
+        memberId: data.memberId,
+        amount: data.amount,
+        currency: data.currency,
+        method: data.method,
+        description: data.description,
+        paidAt: data.paidAt,
+      });
+      setShowManualPaymentModal(false);
+      console.log('Payment logged successfully');
+    } catch (error) {
+      console.error('Failed to log payment:', error);
+      alert('Failed to log payment. Please try again.');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500 dark:text-gray-400">Loading payments...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6">
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-6 max-w-md">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-lg font-semibold text-red-900 dark:text-red-100">
+                Failed to Load Payments
+              </h3>
+              <p className="mt-2 text-sm text-red-700 dark:text-red-300">
+                Unable to fetch payment data from the server. This could be because:
+              </p>
+              <ul className="mt-2 text-sm text-red-700 dark:text-red-300 list-disc list-inside space-y-1">
+                <li>The payments API endpoint is not yet implemented</li>
+                <li>You don&apos;t have permission to view payments</li>
+                <li>There&apos;s a network connection issue</li>
+              </ul>
+              <button
+                onClick={() => refetch()}
+                className="mt-4 w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Payment History
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          View all successful payments and transaction history
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Payment History
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            View all payments and manually log transactions
+          </p>
+        </div>
+        <button
+          onClick={() => setShowManualPaymentModal(true)}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Log Payment
+        </button>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <div
-            key={stat.title}
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                  {stat.title}
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-                  {stat.value}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  {stat.subtext}
-                </p>
-              </div>
-              <div className={`${stat.color} p-3 rounded-lg`}>
-                <stat.icon className="w-6 h-6 text-white" />
+      {displayStats.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {displayStats.map((stat) => (
+            <div
+              key={stat.title}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                    {stat.title}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2" suppressHydrationWarning>
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                    {stat.subtext}
+                  </p>
+                </div>
+                <div className={`${stat.color} p-3 rounded-lg`}>
+                  <stat.icon className="w-6 h-6 text-white" />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <PaymentFilters 
@@ -155,8 +217,25 @@ export default function PaymentsPage() {
 
       {/* Payments Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <PaymentsTable payments={filteredPayments} />
+        {filteredPayments.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-gray-500 dark:text-gray-400">
+              {payments.length === 0 
+                ? 'No payments yet. Log your first payment to get started.'
+                : 'No payments match your current filters.'}
+            </p>
+          </div>
+        ) : (
+          <PaymentsTable payments={filteredPayments} />
+        )}
       </div>
+
+      {/* Manual Payment Modal */}
+      <ManualPaymentModal
+        isOpen={showManualPaymentModal}
+        onClose={() => setShowManualPaymentModal(false)}
+        onSave={handleLogManualPayment}
+      />
     </div>
   );
 }

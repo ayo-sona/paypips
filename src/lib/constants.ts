@@ -139,7 +139,7 @@ export const GATEWAY_BY_COUNTRY: Record<string, PaymentGateway> = {
 export const ONBOARDING_STEPS = [
   {
     id: 'welcome',
-    title: 'Welcome to FundFlow',
+    title: 'Welcome to willow',
     description: 'Let\'s get you set up in just a few steps',
   },
   {
