@@ -44,13 +44,16 @@ interface OrganizationWithRole extends Organization {
 export default function OrganizationSelectPage() {
   const router = useRouter();
   const { addToast } = useToast();
-  const [organizations, setOrganizations] = useState<OrganizationWithRole[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationWithRole[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    const fetchOrganizations = async () => {  // ← INSIDE useEffect
+    const fetchOrganizations = async () => {
+      // ← INSIDE useEffect
       try {
         const organizations = localStorage.getItem("organizations");
         if (organizations) {
@@ -78,15 +81,12 @@ export default function OrganizationSelectPage() {
       const response = await apiClient.get(`/organizations/select/${orgId}`);
       console.log(response.data);
       if (response.data?.data?.accessToken) {
-        // localStorage.setItem("access_token", response.data.data.access_token);
-        setCookie("access_token", response.data.data.accessToken, {
-          maxAge: 60 * 60, // 1 hour
-        });
-        addToast("success", "Success", "Switched organization successfully");
+        setCookie("access_token", response.data.data.accessToken);
         router.push("/enterprise/dashboard");
+        // addToast("success", "Success", "Switched organization successfully");
       }
     } catch (error) {
-      console.error('Failed to switch organization:', error);
+      console.error("Failed to switch organization:", error);
       addToast("error", "Error", "Failed to switch organization");
       setSelectedOrg(null);
     }

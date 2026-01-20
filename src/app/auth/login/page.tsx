@@ -34,20 +34,17 @@ export default function LoginPage() {
       });
 
       if (response.data?.data?.access_token) {
-        // localStorage.setItem("access_token", response.data.data.access_token);
-        setCookie("access_token", response.data.data.access_token, {
-          maxAge: 60 * 60, // 1 hour
-        });
+        setCookie("access_token", response.data.data.access_token);
         localStorage.setItem(
           "organizations",
-          JSON.stringify(response.data.data.organizations)
+          JSON.stringify(response.data.data.organizations),
         );
         router.push("/select");
       }
     } catch (err: any) {
       console.error("Login error:", err);
       setError(
-        err.response?.data?.message || "Failed to login. Please try again."
+        err.response?.data?.message || "Failed to login. Please try again.",
       );
     } finally {
       setIsLoading(false);
