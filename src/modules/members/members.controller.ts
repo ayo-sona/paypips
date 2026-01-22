@@ -17,6 +17,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Member } from '../../database/entities/member.entity';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional } from 'class-validator';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
 class SearchDto {
   @ApiPropertyOptional()
@@ -54,12 +55,12 @@ export class MembersController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Member not found' })
-  @Get(':id')
+  @Get('/me')
   findOne(
+    @CurrentUser() user: any,
     @CurrentOrganization() organizationId: string,
-    @Param('id') id: string,
   ) {
-    return this.membersService.findOne(organizationId, id);
+    return this.membersService.findOne(organizationId, user.id);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -70,12 +71,12 @@ export class MembersController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Member not found' })
-  @Get(':id/stats')
+  @Get('stats')
   getStats(
     @CurrentOrganization() organizationId: string,
-    @Param('id') id: string,
+    @CurrentUser() user: any,
   ) {
-    return this.membersService.getMemberStats(organizationId, id);
+    return this.membersService.getMemberStats(organizationId, user.id);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -88,13 +89,13 @@ export class MembersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Member not found' })
   @ApiResponse({ status: 409, description: 'Email already in use' })
-  @Put(':id')
+  @Put()
   update(
     @CurrentOrganization() organizationId: string,
-    @Param('id') id: string,
+    @CurrentUser() user: any,
     @Body() UpdateMemberDto: UpdateMemberDto,
   ) {
-    return this.membersService.update(organizationId, id, UpdateMemberDto);
+    return this.membersService.update(organizationId, user.id, UpdateMemberDto);
   }
 
   @ApiBearerAuth('JWT-auth')
@@ -103,11 +104,11 @@ export class MembersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Member not found' })
   @ApiResponse({ status: 409, description: 'Member has active subscription' })
-  @Delete(':id')
+  @Delete()
   delete(
     @CurrentOrganization() organizationId: string,
-    @Param('id') id: string,
+    @CurrentUser() user: any,
   ) {
-    return this.membersService.delete(organizationId, id);
+    return this.membersService.delete(organizationId, user.id);
   }
 }

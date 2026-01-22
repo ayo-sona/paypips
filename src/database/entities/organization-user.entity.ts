@@ -42,6 +42,12 @@ export class OrganizationUser {
   @Column({ type: 'text', default: 'active' })
   status: string;
 
+  @Column({ type: 'text', nullable: true })
+  stripe_customer_id: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  stripe_default_payment_method: string;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

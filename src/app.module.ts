@@ -19,6 +19,7 @@ import { CronModule } from './modules/cron/cron.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 import { InvitationsModule } from './modules/invitations/invitations.module';
+import { StripeModule } from './modules/stripe/stripe.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { InvitationsModule } from './modules/invitations/invitations.module';
     NotificationsModule,
     CronModule,
     AnalyticsModule,
+    StripeModule,
   ],
   providers: [
     {

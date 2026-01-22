@@ -50,34 +50,29 @@ export class MembersService {
     return query.getMany();
   }
 
-  async findOne(organizationId: string, id: string): Promise<Member> {
-    // First verify the org user belongs to the organization
-    const member = await this.memberRepository
-      .createQueryBuilder('member')
-      .innerJoin(
-        'member.organization_user',
-        'organization_user',
-        'organization_user.organization_id = :organizationId',
-        { organizationId },
-      )
-      .leftJoinAndSelect('member.organization_user', 'organization_user')
-      .leftJoinAndSelect('organization_user.user', 'user')
-      .where('member.id = :id', { id })
-      .getOne();
+  async findOne(organizationId: string, userId: string): Promise<Member> {
+    const member = await this.memberRepository.findOne({
+      where: {
+        user_id: userId,
+        organization_user: {
+          organization_id: organizationId,
+        },
+      },
+      relations: ['organization_user', 'organization_user.user'],
+    });
 
     if (!member) {
-      throw new NotFoundException('Member not found');
+      throw new NotFoundException(`Member not found in this organization`);
     }
-
     return member;
   }
 
   async update(
     organizationId: string,
-    id: string,
+    userId: string,
     updateDto: UpdateMemberDto,
   ): Promise<Member> {
-    const member = await this.findOne(organizationId, id);
+    const member = await this.findOne(organizationId, userId);
 
     // Only update allowed fields
     const updated = this.memberRepository.merge(member, {
@@ -92,10 +87,10 @@ export class MembersService {
     return this.memberRepository.save(updated);
   }
 
-  async delete(organizationId: string, memberId: string) {
+  async delete(organizationId: string, userId: string) {
     const member = await this.memberRepository.findOne({
       where: {
-        id: memberId,
+        user_id: userId,
         organization_user: {
           organization_id: organizationId,
         },
@@ -104,7 +99,7 @@ export class MembersService {
     });
 
     if (!member) {
-      throw new NotFoundException('Member not found');
+      throw new NotFoundException('Member not found in this organization');
     }
 
     // Check for active subscriptions
@@ -125,18 +120,19 @@ export class MembersService {
     };
   }
 
-  async getMemberStats(organizationId: string, memberId: string) {
+  async getMemberStats(organizationId: string, userId: string) {
     const member = await this.memberRepository.findOne({
       where: {
-        id: memberId,
+        user_id: userId,
         organization_user: {
           organization_id: organizationId,
         },
       },
+      relations: ['organization_user'],
     });
 
     if (!member) {
-      throw new NotFoundException('Member not found');
+      throw new NotFoundException('Member not found in this organization');
     }
 
     // Get subscription stats
@@ -146,7 +142,7 @@ export class MembersService {
          FROM member_subscriptions
          WHERE member_id = $1
          GROUP BY status`,
-        [memberId],
+        [member.id],
       ),
       this.memberRepository.query(
         `SELECT COUNT(*) as count, status

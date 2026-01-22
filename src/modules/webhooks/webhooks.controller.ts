@@ -49,4 +49,18 @@ export class WebhooksController {
     // Process webhook
     return await this.webhooksService.handlePaystackWebhook(body);
   }
+
+  @Post('stripe')
+  @ApiOperation({ summary: 'Stripe webhook handler' })
+  @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid webhook signature' })
+  @HttpCode(HttpStatus.OK)
+  async handleWebhook(
+    @Headers('stripe-signature') signature: string,
+    @Req() request: RawBodyRequest<Request>,
+  ) {
+    const payload = request.rawBody!;
+
+    return await this.webhooksService.handleStripeWebhook(signature, payload);
+  }
 }

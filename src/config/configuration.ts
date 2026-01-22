@@ -31,7 +31,16 @@ export default () => ({
   paystack: {
     secretKey: process.env.PAYSTACK_SECRET_KEY,
     publicKey: process.env.PAYSTACK_PUBLIC_KEY,
-    webhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET,
+    testSecretKey: process.env.PAYSTACK_TEST_SECRET_KEY,
+    testPublicKey: process.env.PAYSTACK_TEST_PUBLIC_KEY,
+  },
+
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    testSecretKey: process.env.STRIPE_TEST_SECRET_KEY,
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    testPublishableKey: process.env.STRIPE_TEST_PUBLISHABLE_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
   },
 
   redis: {

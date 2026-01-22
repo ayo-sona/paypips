@@ -73,6 +73,44 @@ export class PaystackService {
     }
   }
 
+  // Get transaction details
+  async getTransaction(transactionId) {
+    try {
+      const response = await this.paystackClient.get(
+        `/transaction/${transactionId}`,
+      );
+
+      return {
+        success: true,
+        data: response.data.data,
+      };
+    } catch (error) {
+      console.error('Get transaction error:', error.response?.data);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Transaction not found',
+      };
+    }
+  }
+
+  // Get balance
+  async getBalance() {
+    try {
+      const response = await this.paystackClient.get('/balance');
+
+      return {
+        success: true,
+        data: response.data.data,
+      };
+    } catch (error) {
+      console.error('Get balance error:', error.response?.data);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch balance',
+      };
+    }
+  }
+
   async listTransactions(perPage = 50, page = 1) {
     try {
       const response = await this.paystackClient.get('/transaction', {
@@ -124,4 +162,21 @@ export class PaystackService {
   convertToNaira(kobo: number): number {
     return kobo / 100;
   }
+
+  // Generate unique reference
+  static generateReference(prefix = 'REE') {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    return `${prefix}_${timestamp}_${random}`;
+  }
+
+  // Format amount for display
+  static formatAmount(amount) {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+    }).format(amount);
+  }
 }
+
+// ReeTrack

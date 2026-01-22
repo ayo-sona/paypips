@@ -21,6 +21,7 @@ export enum InvoiceStatus {
   PAID = 'paid',
   CANCELLED = 'cancelled',
   FAILED = 'failed',
+  REFUNDED = 'refunded',
 }
 
 export enum InvoiceBilledType {
@@ -41,7 +42,7 @@ export class Invoice {
 
   @Column({ type: 'uuid', nullable: true })
   organization_subscription_id: string;
-  
+
   @Column({ type: 'uuid' })
   issuer_org_id: string;
 

@@ -151,24 +151,27 @@ export class SubscriptionsService {
     };
   }
 
-  //   async findOneMemberSubscription(organizationId: string, subscriptionId: string) {
-  //     const subscription = await this.memberSubscriptionRepository.findOne({
-  //       where: {
-  //         id: subscriptionId,
-  //         organization_id: organizationId,
-  //       },
-  //       relations: ['member', 'plan'],
-  //     });
+  async findOneMemberSubscription(
+    organizationId: string,
+    subscriptionId: string,
+  ) {
+    const subscription = await this.memberSubscriptionRepository.findOne({
+      where: {
+        id: subscriptionId,
+        organization_id: organizationId,
+      },
+      relations: ['member', 'member.user', 'plan'],
+    });
 
-  //     if (!subscription) {
-  //       throw new NotFoundException('Subscription not found');
-  //     }
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
 
-  //     return {
-  //       message: 'Subscription retrieved successfully',
-  //       data: subscription,
-  //     };
-  //   }
+    return {
+      message: 'Subscription retrieved successfully',
+      data: subscription,
+    };
+  }
 
   async pause(organizationId: string, subscriptionId: string) {
     const subscription = await this.memberSubscriptionRepository.findOne({
