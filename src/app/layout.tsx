@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "../providers/QueryProvider";
-import { OrganizationProvider } from "../contexts/OrganizationContext";
+// import { OrganizationProvider } from "../contexts/OrganizationContext";
 
 export const metadata: Metadata = {
   title: "Willow Enterprise",
@@ -16,9 +16,9 @@ export default function RootLayout({
   return (
     <html>
       <body>
-        <OrganizationProvider>
-          <QueryProvider>{children}</QueryProvider>
-        </OrganizationProvider>
+        {/* <OrganizationProvider> */}
+        <QueryProvider>{children}</QueryProvider>
+        {/* </OrganizationProvider> */}
       </body>
     </html>
   );

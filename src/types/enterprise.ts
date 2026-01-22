@@ -46,26 +46,44 @@ export interface SubscriptionPlan {
 export type MemberStatus = 'active' | 'inactive' | 'expired';
 export type MembershipType = 'self_signup' | 'manual_add' | 'invite';
 
+/// Member type based on ACTUAL API response from /api/v1/members
+// Member type based on ACTUAL API response from /api/v1/members
 export interface Member {
   id: string;
-  enterpriseId: string;
-  userId: string; // Reference to PayPips user account
-  name: string;
-  email: string;
-  phone: string;
-  avatar?: string;
-  planId: string;
-  planName: string;
-  status: MemberStatus;
-  membershipType: MembershipType;
-  subscriptionStartDate: string;
-  subscriptionExpiryDate: string;
-  autoRenew: boolean;
-  lastPaymentDate?: string;
-  totalPaid: number;
-  joinedDate: string;
-  gateway?: PaymentGateway;
+  organization_user_id: string;
+  user_id: string;
+  date_of_birth: string;
+  address: string;
+  check_in_count: number;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  medical_notes: string;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  organization_user: {
+    id: string;
+    user_id: string;
+    organization_id: string;
+    role: 'ADMIN' | 'MEMBER' | 'STAFF';
+    status: 'active' | 'inactive';
+    created_at: string;
+    updated_at: string;
+    user?: {
+      id: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+      phone: string;
+      status: 'active' | 'inactive';
+      email_verified: boolean;
+      last_login_at: string;
+      created_at: string;
+      updated_at: string;
+    };
+  };
 }
+
 
 // Payment Types
 export type PaymentMethod = 'card' | 'bank_transfer' | 'ussd';

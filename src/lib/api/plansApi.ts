@@ -1,11 +1,11 @@
-import apiClient from '../apiClient';
+import apiClient from "../apiClient";
 
 export interface CreatePlanDto {
   name: string;
   description: string;
   amount: number;
   currency: string;
-  interval: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: "daily" | "weekly" | "monthly" | "yearly";
   intervalCount: number;
   trialPeriodDays?: number;
   features: string[];
@@ -16,7 +16,7 @@ export interface UpdatePlanDto {
   description?: string;
   amount?: number;
   currency?: string;
-  interval?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval?: "daily" | "weekly" | "monthly" | "yearly";
   intervalCount?: number;
   trialPeriodDays?: number;
   features?: string[];
@@ -53,13 +53,16 @@ export interface PaginatedResponse<T> {
 export const plansApi = {
   // Create plan
   create: async (data: CreatePlanDto): Promise<Plan> => {
-    const response = await apiClient.post('/member-plans', data);
+    const response = await apiClient.post("/member-plans", data);
     return response.data.data; // Extract from wrapper
   },
 
   // Get all plans
-  getAll: async (page: number = 1, limit: number = 10): Promise<PaginatedResponse<Plan>> => {
-    const response = await apiClient.get('/member-plans', {
+  getAll: async (
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedResponse<Plan>> => {
+    const response = await apiClient.get("/member-plans", {
       params: { page, limit },
     });
     // Backend returns: { statusCode, message, data: [...] }
@@ -78,7 +81,7 @@ export const plansApi = {
 
   // Get active plans
   getActive: async (): Promise<Plan[]> => {
-    const response = await apiClient.get('/member-plans/active');
+    const response = await apiClient.get("/member-plans/active");
     return response.data.data;
   },
 

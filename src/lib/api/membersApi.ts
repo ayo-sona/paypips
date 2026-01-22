@@ -1,22 +1,5 @@
 import apiClient from '../apiClient';
-
-export interface Member {
-  id: string;
-  role: 'ADMIN' | 'MEMBER' | 'STAFF';
-  status: 'active' | 'inactive';
-  user: {
-    id: string;
-    email: string;
-    first_name: string;
-    last_name: string;
-    phone: string;
-    status: 'active' | 'inactive';
-    email_verified: boolean;
-    last_login_at: string;
-    created_at: string;
-    updated_at: string;
-  };
-}
+import { Member } from '../../types/enterprise'; // Import the correct type
 
 export interface UpdateMemberDto {
   date_of_birth?: string;

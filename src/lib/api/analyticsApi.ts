@@ -1,4 +1,4 @@
-import apiClient from '../apiClient';
+import apiClient from "../apiClient";
 
 export interface AnalyticsOverview {
   mrr: {
@@ -21,7 +21,6 @@ export interface AnalyticsOverview {
     // Optional - backend will add these
     active_members?: number;
     inactive_members?: number;
-    expired_members?: number;
   };
   payments: {
     total_payments: number;
@@ -45,17 +44,16 @@ export interface AnalyticsOverview {
 }
 
 export const analyticsApi = {
-  // Get overview - requires organizationId and date range
+  // Get overview - requires organizationId
   getOverview: async (
-    organizationId: string, 
-    params: { 
-      period?: string; 
-      startDate: string;  // REQUIRED
-      endDate: string;    // REQUIRED
-    }
+    organizationId: string,
+    params: { period: string; startDate?: string; endDate?: string },
   ): Promise<AnalyticsOverview> => {
-    const response = await apiClient.get(`/analytics/overview/${organizationId}`, { params });
-    return response.data.data;
+    console.log(params);
+    const response = await apiClient.get(
+      `/analytics/overview/${organizationId}?startDate=${params?.startDate}&endDate=${params?.endDate}&period=${params.period}`,
+    );
+    return response.data.data; // Extract from wrapper
   },
 
   // Get MRR (Monthly Recurring Revenue)
@@ -64,41 +62,41 @@ export const analyticsApi = {
     return response.data.data;
   },
 
-  // Get churn rate - requires date range
+  // Get churn rate
   getChurn: async (
-    organizationId: string, 
-    params: { 
-      period?: string; 
-      startDate: string;  // REQUIRED
-      endDate: string;    // REQUIRED
-    }
+    organizationId: string,
+    params: { period: string; startDate?: string; endDate?: string },
   ) => {
-    const response = await apiClient.get(`/analytics/churn/${organizationId}`, { params });
+    const response = await apiClient.get(
+      `/analytics/churn/${organizationId}?startDate=${params?.startDate}&endDate=${params?.endDate}&period=${params.period}`,
+    );
     return response.data.data;
   },
 
-  // Get revenue chart data - requires date range
+  // Get revenue chart data
   getRevenueChart: async (
-    organizationId: string, 
-    params: { 
-      period?: string; 
-      startDate: string;  // REQUIRED
-      endDate: string;    // REQUIRED
-    }
+    organizationId: string,
+    params: { period: string; startDate?: string; endDate?: string },
   ) => {
-    const response = await apiClient.get(`/analytics/revenue-chart/${organizationId}`, { params });
+    const response = await apiClient.get(
+      `/analytics/revenue-chart/${organizationId}?startDate=${params?.startDate}&endDate=${params?.endDate}&period=${params.period}`,
+    );
     return response.data.data;
   },
 
   // Get plan performance
   getPlanPerformance: async (organizationId: string) => {
-    const response = await apiClient.get(`/analytics/plan-performance/${organizationId}`);
+    const response = await apiClient.get(
+      `/analytics/plan-performance/${organizationId}`,
+    );
     return response.data.data;
   },
 
   // Get top members
   getTopMembers: async (organizationId: string) => {
-    const response = await apiClient.get(`/analytics/top-members/${organizationId}`);
+    const response = await apiClient.get(
+      `/analytics/top-members/${organizationId}`,
+    );
     return response.data.data;
   },
 };
