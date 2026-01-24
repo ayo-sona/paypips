@@ -1,6 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { analyticsApi, AnalyticsOverview } from "../lib/api/analyticsApi";
+import { analyticsApi } from "../lib/api/analyticsApi";
 import { getCurrentOrganizationId } from "../utils/organisationUtils";
+import type {
+  AnalyticsOverview,
+  RevenueChartData,
+  ChurnData,
+  MRRData,
+  PlanPerformanceData,
+  TopMemberData,
+} from "../types/analytics";
 
 // Helper to get default date range (last 30 days)
 const getDefaultDateRange = () => {
@@ -33,7 +41,7 @@ export const useAnalyticsOverview = (params: {
 export const useMRR = () => {
   const organizationId = getCurrentOrganizationId();
 
-  return useQuery({
+  return useQuery<MRRData, Error>({
     queryKey: ["analytics", "mrr", organizationId],
     queryFn: () => analyticsApi.getMRR(organizationId),
     retry: false,
@@ -48,7 +56,7 @@ export const useChurn = (params: {
 }) => {
   const organizationId = getCurrentOrganizationId();
 
-  return useQuery({
+  return useQuery<ChurnData, Error>({
     queryKey: ["analytics", "churn", organizationId, params],
     queryFn: () => analyticsApi.getChurn(organizationId, params),
     retry: false,
@@ -63,7 +71,7 @@ export const useRevenueChart = (params: {
 }) => {
   const organizationId = getCurrentOrganizationId();
 
-  return useQuery({
+  return useQuery<RevenueChartData[], Error>({
     queryKey: ["analytics", "revenue-chart", organizationId, params],
     queryFn: () => analyticsApi.getRevenueChart(organizationId, params),
     retry: false,
@@ -74,7 +82,7 @@ export const useRevenueChart = (params: {
 export const usePlanPerformance = () => {
   const organizationId = getCurrentOrganizationId();
 
-  return useQuery({
+  return useQuery<PlanPerformanceData[], Error>({
     queryKey: ["analytics", "plan-performance", organizationId],
     queryFn: () => analyticsApi.getPlanPerformance(organizationId),
     retry: false,
@@ -85,7 +93,7 @@ export const usePlanPerformance = () => {
 export const useTopMembers = () => {
   const organizationId = getCurrentOrganizationId();
 
-  return useQuery({
+  return useQuery<TopMemberData[], Error>({
     queryKey: ["analytics", "top-members", organizationId],
     queryFn: () => analyticsApi.getTopMembers(organizationId),
     retry: false,

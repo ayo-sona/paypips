@@ -1,91 +1,86 @@
 import apiClient from "../apiClient";
-
-export interface AnalyticsOverview {
-  mrr: {
-    current_mrr: number;
-    previous_mrr: number;
-    growth_rate: number;
-    growth_amount: number;
-  };
-  revenue: {
-    total_revenue: number;
-    period_revenue: number;
-    growth_rate: number;
-    average_transaction: number;
-  };
-  members: {
-    total_members: number;
-    new_members: number;
-    churned_members: number;
-    net_growth: number;
-    // Optional - backend will add these
-    active_members?: number;
-    inactive_members?: number;
-  };
-  payments: {
-    total_payments: number;
-    successful_payments: number;
-    failed_payments: number;
-    pending_payments: number;
-    success_rate: number;
-  };
-  subscriptions: {
-    total_subscriptions: number;
-    active_subscriptions: number;
-    expired_subscriptions: number;
-    canceled_subscriptions: number;
-    paused_subscriptions: number;
-    new_subscriptions: number;
-  };
-  period: {
-    start: string;
-    end: string;
-  };
-}
+import type {
+  AnalyticsOverview,
+  RevenueChartData,
+  ChurnData,
+  MRRData,
+  PlanPerformanceData,
+  TopMemberData,
+} from "../../types/analytics";
 
 export const analyticsApi = {
-  // Get overview - requires organizationId
+  // ⭐ FIXED: Get overview - properly handle optional params
   getOverview: async (
     organizationId: string,
     params: { period: string; startDate?: string; endDate?: string },
   ): Promise<AnalyticsOverview> => {
-    console.log(params);
+    const queryParams: Record<string, string> = { period: params.period };
+    
+    // Only add if they exist
+    if (params.startDate) {
+      queryParams.startDate = params.startDate;
+    }
+    if (params.endDate) {
+      queryParams.endDate = params.endDate;
+    }
+
     const response = await apiClient.get(
-      `/analytics/overview/${organizationId}?startDate=${params?.startDate}&endDate=${params?.endDate}&period=${params.period}`,
+      `/analytics/overview/${organizationId}`,
+      { params: queryParams }
     );
-    return response.data.data; // Extract from wrapper
+    return response.data.data;
   },
 
   // Get MRR (Monthly Recurring Revenue)
-  getMRR: async (organizationId: string) => {
+  getMRR: async (organizationId: string): Promise<MRRData> => {
     const response = await apiClient.get(`/analytics/mrr/${organizationId}`);
     return response.data.data;
   },
 
-  // Get churn rate
+  // ⭐ FIXED: Get churn rate
   getChurn: async (
     organizationId: string,
     params: { period: string; startDate?: string; endDate?: string },
-  ) => {
+  ): Promise<ChurnData> => {
+    const queryParams: Record<string, string> = { period: params.period };
+    
+    if (params.startDate) {
+      queryParams.startDate = params.startDate;
+    }
+    if (params.endDate) {
+      queryParams.endDate = params.endDate;
+    }
+
     const response = await apiClient.get(
-      `/analytics/churn/${organizationId}?startDate=${params?.startDate}&endDate=${params?.endDate}&period=${params.period}`,
+      `/analytics/churn/${organizationId}`,
+      { params: queryParams }
     );
     return response.data.data;
   },
 
-  // Get revenue chart data
+  // ⭐ FIXED: Get revenue chart data
   getRevenueChart: async (
     organizationId: string,
     params: { period: string; startDate?: string; endDate?: string },
-  ) => {
+  ): Promise<RevenueChartData[]> => {
+    const queryParams: Record<string, string> = { period: params.period };
+    
+    if (params.startDate) {
+      queryParams.startDate = params.startDate;
+    }
+    if (params.endDate) {
+      queryParams.endDate = params.endDate;
+    }
+
     const response = await apiClient.get(
-      `/analytics/revenue-chart/${organizationId}?startDate=${params?.startDate}&endDate=${params?.endDate}&period=${params.period}`,
+      `/analytics/revenue-chart/${organizationId}`,
+      { params: queryParams }
     );
     return response.data.data;
   },
 
   // Get plan performance
-  getPlanPerformance: async (organizationId: string) => {
+  getPlanPerformance: async (organizationId: string): Promise<PlanPerformanceData[]> => {
     const response = await apiClient.get(
       `/analytics/plan-performance/${organizationId}`,
     );
@@ -93,7 +88,7 @@ export const analyticsApi = {
   },
 
   // Get top members
-  getTopMembers: async (organizationId: string) => {
+  getTopMembers: async (organizationId: string): Promise<TopMemberData[]> => {
     const response = await apiClient.get(
       `/analytics/top-members/${organizationId}`,
     );

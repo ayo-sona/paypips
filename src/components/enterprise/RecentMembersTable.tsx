@@ -1,26 +1,20 @@
 'use client';
 
 import { useTeamMembers } from '../../hooks/useOrganisations';
-import { usePlans } from '../../hooks/usePlans';
 import { useMemo } from 'react';
 
 export function RecentMembersTable() {
   // Hooks handle data fetching
   const { data: teamMembers, isLoading } = useTeamMembers();
-  const { data: plansResponse } = usePlans();
 
-  const plans = useMemo(() => plansResponse?.data || [], [plansResponse?.data]);
-
-  // UI-only: Get recent members and format data
-  const recentMembers = useMemo(() => {
+  // ⭐ FIXED: Filter to only show ADMIN and STAFF (exclude MEMBER role)
+  const recentTeamMembers = useMemo(() => {
     if (!teamMembers) return [];
     
     return teamMembers
-      .slice(0, 5)
+      .filter(member => member.role !== 'MEMBER') // ⭐ Only show ADMIN/STAFF
+      .slice(0, 5) // Get most recent 5
       .map((member) => {
-        // Find plan name (if member has subscription)
-        const plan = plans.find(p => p.id === member.id); // You may need to adjust based on your subscription structure
-        
         return {
           id: member.id,
           name: `${member.user.first_name} ${member.user.last_name}`.trim() || member.user.email || 'Unknown',
@@ -30,7 +24,7 @@ export function RecentMembersTable() {
           lastLogin: member.user.last_login_at,
         };
       });
-  }, [teamMembers, plans]);
+  }, [teamMembers]);
 
   if (isLoading) {
     return (
@@ -40,14 +34,14 @@ export function RecentMembersTable() {
     );
   }
 
-  if (recentMembers.length === 0) {
+  if (recentTeamMembers.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">
-          Recent Members
+          Recent Team Members
         </h3>
         <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
-          No members found
+          No team members found
         </div>
       </div>
     );
@@ -59,6 +53,9 @@ export function RecentMembersTable() {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           Recent Team Members
         </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Staff and administrators only
+        </p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -82,7 +79,7 @@ export function RecentMembersTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {recentMembers.map((member) => (
+            {recentTeamMembers.map((member) => (
               <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -107,9 +104,7 @@ export function RecentMembersTable() {
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                     member.role === 'ADMIN' 
                       ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                      : member.role === 'STAFF'
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                      : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                   }`}>
                     {member.role}
                   </span>

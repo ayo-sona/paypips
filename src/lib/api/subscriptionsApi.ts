@@ -1,5 +1,6 @@
 import apiClient from '../apiClient';
 import { PaginatedResponse } from './plansApi';
+import axios from 'axios';
 
 export interface CreateSubscriptionDto {
   memberId: string;
@@ -11,60 +12,94 @@ export interface Subscription {
   id: string;
   member_id: string;
   plan_id: string;
+  organization_id: string;
   status: 'active' | 'paused' | 'canceled' | 'expired';
-  current_period_start: string;
-  current_period_end: string;
-  cancel_at_period_end: boolean;
+  started_at: string;
+  expires_at: string;
+  canceled_at: string | null;
+  auto_renew: boolean;
+  metadata: unknown;
   created_at: string;
   updated_at: string;
+  plan: {
+    id: string;
+    organization_id: string;
+    name: string;
+    description: string;
+    price: number;
+    currency: string;
+    interval: string;
+    interval_count: number;
+    features: {
+      features: string[];
+    };
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+  };
 }
 
 export const subscriptionsApi = {
-  // Create subscription - requires organizationId
-  create: async (organizationId: string, data: CreateSubscriptionDto): Promise<Subscription> => {
-    const response = await apiClient.post(`/members/subscriptions/${organizationId}`, data);
-    return response.data.data; // Extract from wrapper
+  // ⭐ FIXED: Create subscription (no organizationId in path)
+  create: async (data: CreateSubscriptionDto): Promise<Subscription> => {
+    try {
+      console.log('🚀 Creating subscription with data:', data);
+      const response = await apiClient.post('/members/subscriptions', data);
+      console.log('✅ Subscription created:', response.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('❌ Subscription creation failed:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Response data:', error.response?.data);
+        console.error('Response status:', error.response?.status);
+      }
+      throw error;
+    }
   },
 
-  // Get all subscriptions - requires organizationId
-  getAll: async (organizationId: string, page: number = 1, limit: number = 10, status?: string): Promise<PaginatedResponse<Subscription>> => {
-    const response = await apiClient.get(`/members/subscriptions/${organizationId}`, {
+  // ⭐ FIXED: Get all subscriptions (no organizationId in path)
+  getAll: async (page: number = 1, limit: number = 10, status?: string): Promise<PaginatedResponse<Subscription>> => {
+    const response = await apiClient.get('/members/subscriptions', {
       params: { page, limit, status },
     });
-    // Backend returns paginated response
-    const subscriptions = response.data.data || [];
     return {
-      data: subscriptions,
+      data: response.data.data || [],
       meta: response.data.meta || {
         page,
         limit,
-        total: subscriptions.length,
-        totalPages: Math.ceil(subscriptions.length / limit),
+        total: 0,
+        totalPages: 0,
       },
     };
   },
 
-  // Pause subscription
-  pause: async (organizationId: string, subscriptionId: string): Promise<Subscription> => {
-    const response = await apiClient.patch(`/members/subscriptions/${organizationId}/${subscriptionId}/pause`);
+  // ⭐ FIXED: Get subscription by ID
+  getById: async (subscriptionId: string): Promise<Subscription> => {
+    const response = await apiClient.get(`/members/subscriptions/${subscriptionId}`);
     return response.data.data;
   },
 
-  // Resume subscription
-  resume: async (organizationId: string, subscriptionId: string): Promise<Subscription> => {
-    const response = await apiClient.patch(`/members/subscriptions/${organizationId}/${subscriptionId}/resume`);
+  // ⭐ FIXED: Pause subscription
+  pause: async (subscriptionId: string): Promise<Subscription> => {
+    const response = await apiClient.patch(`/members/subscriptions/${subscriptionId}/pause`);
     return response.data.data;
   },
 
-  // Cancel subscription
-  cancel: async (organizationId: string, subscriptionId: string): Promise<Subscription> => {
-    const response = await apiClient.patch(`/members/subscriptions/${organizationId}/${subscriptionId}/cancel`);
+  // ⭐ FIXED: Resume subscription
+  resume: async (subscriptionId: string): Promise<Subscription> => {
+    const response = await apiClient.patch(`/members/subscriptions/${subscriptionId}/resume`);
     return response.data.data;
   },
 
-  // Renew subscription
-  renew: async (organizationId: string, subscriptionId: string): Promise<Subscription> => {
-    const response = await apiClient.post(`/members/subscriptions/${organizationId}/${subscriptionId}/renew`);
+  // ⭐ FIXED: Cancel subscription
+  cancel: async (subscriptionId: string): Promise<Subscription> => {
+    const response = await apiClient.patch(`/members/subscriptions/${subscriptionId}/cancel`);
+    return response.data.data;
+  },
+
+  // ⭐ FIXED: Renew subscription
+  renew: async (subscriptionId: string): Promise<Subscription> => {
+    const response = await apiClient.post(`/members/subscriptions/${subscriptionId}/renew`);
     return response.data.data;
   },
 };

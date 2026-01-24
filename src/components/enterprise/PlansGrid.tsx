@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SubscriptionPlan } from '../../types/enterprise';
 import { Edit, MoreVertical, Trash2, Users, Check, X, Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
@@ -14,21 +14,26 @@ interface PlansGridProps {
 
 export function PlansGrid({ plans, onEditPlan, onTogglePlanStatus, onDeletePlan }: PlansGridProps) {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Close dropdown when clicking outside
+  // ⭐ FIXED: Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (!selectedPlan) return;
+
+      const dropdown = dropdownRefs.current[selectedPlan];
+      if (dropdown && !dropdown.contains(event.target as Node)) {
         setSelectedPlan(null);
       }
     };
 
-    if (selectedPlan) {
+    // Add listener with a slight delay to avoid immediate closing
+    const timeoutId = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
-    }
+    }, 0);
 
     return () => {
+      clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [selectedPlan]);
@@ -44,6 +49,7 @@ export function PlansGrid({ plans, onEditPlan, onTogglePlanStatus, onDeletePlan 
   };
 
   const handleEditPlan = (plan: SubscriptionPlan) => {
+    console.log('🖊️ Edit clicked for:', plan.name);
     setSelectedPlan(null);
     onEditPlan(plan);
   };
@@ -56,6 +62,12 @@ export function PlansGrid({ plans, onEditPlan, onTogglePlanStatus, onDeletePlan 
   const handleDeletePlan = (planId: string) => {
     setSelectedPlan(null);
     onDeletePlan(planId);
+  };
+
+  const toggleDropdown = (planId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('🔘 Dropdown toggle for plan:', planId);
+    setSelectedPlan(selectedPlan === planId ? null : planId);
   };
 
   return (
@@ -90,10 +102,15 @@ export function PlansGrid({ plans, onEditPlan, onTogglePlanStatus, onDeletePlan 
               )}
             </div>
             
-            {/* Dropdown Menu */}
-            <div className="relative" ref={dropdownRef}>
+            {/* ⭐ FIXED: Dropdown Menu with proper ref */}
+            <div 
+              className="relative"
+              ref={(el) => {
+                if (el) dropdownRefs.current[plan.id] = el;
+              }}
+            >
               <button
-                onClick={() => setSelectedPlan(selectedPlan === plan.id ? null : plan.id)}
+                onClick={(e) => toggleDropdown(plan.id, e)}
                 className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 aria-label="Plan options"
               >
@@ -105,7 +122,7 @@ export function PlansGrid({ plans, onEditPlan, onTogglePlanStatus, onDeletePlan 
                   {/* Edit */}
                   <button 
                     onClick={() => handleEditPlan(plan)}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
                   >
                     <Edit className="h-4 w-4" />
                     Edit Plan
@@ -114,7 +131,7 @@ export function PlansGrid({ plans, onEditPlan, onTogglePlanStatus, onDeletePlan 
                   {/* Activate/Deactivate */}
                   <button 
                     onClick={() => handleToggleStatus(plan.id, plan.isActive)}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
                   >
                     {plan.isActive ? (
                       <>
@@ -132,7 +149,7 @@ export function PlansGrid({ plans, onEditPlan, onTogglePlanStatus, onDeletePlan 
                   {/* Delete */}
                   <button 
                     onClick={() => handleDeletePlan(plan.id)}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete Plan
@@ -165,29 +182,33 @@ export function PlansGrid({ plans, onEditPlan, onTogglePlanStatus, onDeletePlan 
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Features
             </p>
-            <ul className="space-y-2">
-              {plan.features.slice(0, 4).map((feature) => (
-                <li key={feature.id} className="flex items-start gap-2 text-sm">
-                  {feature.included ? (
-                    <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                  ) : (
-                    <X className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
-                  )}
-                  <span className={clsx(
-                    feature.included
-                      ? 'text-gray-900 dark:text-gray-100'
-                      : 'text-gray-500 dark:text-gray-400 line-through'
-                  )}>
-                    {feature.name}
-                  </span>
-                </li>
-              ))}
-              {plan.features.length > 4 && (
-                <li className="text-sm text-gray-500 dark:text-gray-400 pl-6">
-                  +{plan.features.length - 4} more feature{plan.features.length - 4 > 1 ? 's' : ''}
-                </li>
-              )}
-            </ul>
+            {plan.features.length > 0 ? (
+              <ul className="space-y-2">
+                {plan.features.slice(0, 4).map((feature) => (
+                  <li key={feature.id} className="flex items-start gap-2 text-sm">
+                    {feature.included ? (
+                      <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                    ) : (
+                      <X className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                    )}
+                    <span className={clsx(
+                      feature.included
+                        ? 'text-gray-900 dark:text-gray-100'
+                        : 'text-gray-500 dark:text-gray-400 line-through'
+                    )}>
+                      {feature.name}
+                    </span>
+                  </li>
+                ))}
+                {plan.features.length > 4 && (
+                  <li className="text-sm text-gray-500 dark:text-gray-400 pl-6">
+                    +{plan.features.length - 4} more feature{plan.features.length - 4 > 1 ? 's' : ''}
+                  </li>
+                )}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No features added</p>
+            )}
           </div>
 
           {/* Status Badge */}

@@ -1,26 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { subscriptionsApi, CreateSubscriptionDto } from '../lib/api/subscriptionsApi';
-import { getCurrentOrganizationId } from '../utils/organisationUtils';
 
 // Get all subscriptions
 export const useSubscriptions = (page: number = 1, limit: number = 10, status?: string) => {
-  const organizationId = getCurrentOrganizationId();
-  
   return useQuery({
-    queryKey: ['subscriptions', organizationId, page, limit, status],
-    queryFn: () => subscriptionsApi.getAll(organizationId, page, limit, status),
+    queryKey: ['subscriptions', page, limit, status],
+    queryFn: () => subscriptionsApi.getAll(page, limit, status),
+  });
+};
+
+// Get subscription by ID
+export const useSubscription = (subscriptionId: string) => {
+  return useQuery({
+    queryKey: ['subscriptions', subscriptionId],
+    queryFn: () => subscriptionsApi.getById(subscriptionId),
+    enabled: !!subscriptionId,
   });
 };
 
 // Create subscription (Grant Access)
 export const useCreateSubscription = () => {
   const queryClient = useQueryClient();
-  const organizationId = getCurrentOrganizationId();
   
   return useMutation({
-    mutationFn: (data: CreateSubscriptionDto) => subscriptionsApi.create(organizationId, data),
+    mutationFn: (data: CreateSubscriptionDto) => subscriptionsApi.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       queryClient.invalidateQueries({ queryKey: ['members'] });
     },
   });
@@ -29,12 +34,12 @@ export const useCreateSubscription = () => {
 // Pause subscription
 export const usePauseSubscription = () => {
   const queryClient = useQueryClient();
-  const organizationId = getCurrentOrganizationId();
   
   return useMutation({
-    mutationFn: (subscriptionId: string) => subscriptionsApi.pause(organizationId, subscriptionId),
+    mutationFn: (subscriptionId: string) => subscriptionsApi.pause(subscriptionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
   });
 };
@@ -42,12 +47,12 @@ export const usePauseSubscription = () => {
 // Resume subscription
 export const useResumeSubscription = () => {
   const queryClient = useQueryClient();
-  const organizationId = getCurrentOrganizationId();
   
   return useMutation({
-    mutationFn: (subscriptionId: string) => subscriptionsApi.resume(organizationId, subscriptionId),
+    mutationFn: (subscriptionId: string) => subscriptionsApi.resume(subscriptionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
   });
 };
@@ -55,12 +60,12 @@ export const useResumeSubscription = () => {
 // Cancel subscription
 export const useCancelSubscription = () => {
   const queryClient = useQueryClient();
-  const organizationId = getCurrentOrganizationId();
   
   return useMutation({
-    mutationFn: (subscriptionId: string) => subscriptionsApi.cancel(organizationId, subscriptionId),
+    mutationFn: (subscriptionId: string) => subscriptionsApi.cancel(subscriptionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
   });
 };
@@ -68,12 +73,12 @@ export const useCancelSubscription = () => {
 // Renew subscription
 export const useRenewSubscription = () => {
   const queryClient = useQueryClient();
-  const organizationId = getCurrentOrganizationId();
   
   return useMutation({
-    mutationFn: (subscriptionId: string) => subscriptionsApi.renew(organizationId, subscriptionId),
+    mutationFn: (subscriptionId: string) => subscriptionsApi.renew(subscriptionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['members'] });
     },
   });
 };

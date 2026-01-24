@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { membersApi, UpdateMemberDto } from '../lib/api/membersApi';
 
-// Get all members
+// Get all members (with optional role filter)
 export const useMembers = (search?: string) => {
   return useQuery({
     queryKey: ['members', search],
     queryFn: () => membersApi.getAll(search),
     retry: false,
+    placeholderData: (previousData) => previousData, // ⭐ Keep previous data while loading new data
   });
 };
 

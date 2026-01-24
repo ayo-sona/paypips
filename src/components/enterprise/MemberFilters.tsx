@@ -1,7 +1,8 @@
 "use client";
 
-import { Search, Calendar, Filter, X } from "lucide-react";
+import { Calendar, Filter, X } from "lucide-react";
 import { MOCK_PLANS } from "../../lib/mockData/enterpriseMockdata";
+import { SearchBar } from "./MemberSearchBar";
 
 interface MemberFiltersType {
   search: string;
@@ -16,13 +17,15 @@ interface MemberFiltersProps {
   onFiltersChange: (filters: MemberFiltersType) => void;
   filteredCount: number;
   totalCount: number;
+  isLoading?: boolean; // ⭐ NEW: Accept loading state
 }
 
 export function MemberFilters({ 
   filters, 
   onFiltersChange,
   filteredCount,
-  totalCount 
+  totalCount,
+  isLoading = false // ⭐ NEW: Default to false
 }: MemberFiltersProps) {
   const updateFilter = (key: keyof MemberFiltersType, value: string) => {
     onFiltersChange({
@@ -50,17 +53,13 @@ export function MemberFilters({
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search by member name or email..."
-          value={filters.search}
-          onChange={(e) => updateFilter("search", e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-      </div>
+      {/* ⭐ Search Bar Component */}
+      <SearchBar 
+        value={filters.search}
+        onChange={(value) => updateFilter("search", value)}
+        placeholder="Search members by name or email..."
+        isLoading={isLoading}
+      />
 
       {/* Filters Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

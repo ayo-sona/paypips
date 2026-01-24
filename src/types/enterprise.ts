@@ -47,41 +47,66 @@ export type MemberStatus = 'active' | 'inactive' | 'expired';
 export type MembershipType = 'self_signup' | 'manual_add' | 'invite';
 
 /// Member type based on ACTUAL API response from /api/v1/members
-// Member type based on ACTUAL API response from /api/v1/members
 export interface Member {
+  // Core member fields
   id: string;
   organization_user_id: string;
   user_id: string;
   date_of_birth: string;
-  address: string;
+  address: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  medical_notes: string | null;
   check_in_count: number;
-  emergency_contact_name: string;
-  emergency_contact_phone: string;
-  medical_notes: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
-  organization_user: {
+
+  // Direct user object from API
+  user: {
     id: string;
-    user_id: string;
-    organization_id: string;
-    role: 'ADMIN' | 'MEMBER' | 'STAFF';
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
     status: 'active' | 'inactive';
+    email_verified: boolean;
+    last_login_at: string;
     created_at: string;
     updated_at: string;
-    user?: {
+  };
+
+  // Subscriptions array
+  subscriptions: Array<{
+    id: string;
+    member_id: string;
+    plan_id: string;
+    organization_id: string;
+    status: 'active' | 'expired' | 'canceled';
+    started_at: string;
+    expires_at: string;
+    canceled_at: string | null;
+    auto_renew: boolean;
+    metadata: unknown;
+    created_at: string;
+    updated_at: string;
+    plan: {
       id: string;
-      email: string;
-      first_name: string;
-      last_name: string;
-      phone: string;
-      status: 'active' | 'inactive';
-      email_verified: boolean;
-      last_login_at: string;
+      organization_id: string;
+      name: string;
+      description: string;
+      price: number;
+      currency: string;
+      interval: string;
+      interval_count: number;
+      features: {
+        features: string[];
+      };
+      is_active: boolean;
       created_at: string;
       updated_at: string;
     };
-  };
+  }>;
 }
 
 
