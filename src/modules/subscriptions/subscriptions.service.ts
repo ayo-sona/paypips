@@ -8,11 +8,16 @@ import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Member } from '../../database/entities/member.entity';
 import { Invoice, InvoiceStatus } from '../../database/entities/invoice.entity';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
-import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
+import { paginate } from '../../common/dto/pagination.dto';
 import { generateInvoiceNumber } from '../../common/utils/invoice-number.util';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
 import { MemberPlan } from '../../database/entities/member-plan.entity';
 import { FindAllMemberSubscriptionsDto } from './dto/find-all-subscriptions.dto';
+import { addMonths } from 'date-fns';
+import {
+  ChangeSubscriptionPlanDto,
+  UpdateSubscriptionDto,
+} from './dto/update-subscription.dto';
 
 @Injectable()
 export class SubscriptionsService {
@@ -173,54 +178,168 @@ export class SubscriptionsService {
     };
   }
 
-  async pause(organizationId: string, subscriptionId: string) {
+  // async pause(organizationId: string, subscriptionId: string) {
+  //   const subscription = await this.memberSubscriptionRepository.findOne({
+  //     where: {
+  //       id: subscriptionId,
+  //       organization_id: organizationId,
+  //     },
+  //   });
+
+  //   if (!subscription) {
+  //     throw new NotFoundException('Subscription not found');
+  //   }
+
+  //   if (subscription.status !== 'active') {
+  //     throw new BadRequestException('Only active subscriptions can be paused');
+  //   }
+
+  //   subscription.status = 'paused';
+  //   await this.memberSubscriptionRepository.save(subscription);
+
+  //   return {
+  //     message: 'Subscription paused successfully',
+  //     data: subscription,
+  //   };
+  // }
+
+  // async resume(organizationId: string, subscriptionId: string) {
+  //   const subscription = await this.memberSubscriptionRepository.findOne({
+  //     where: {
+  //       id: subscriptionId,
+  //       organization_id: organizationId,
+  //     },
+  //   });
+
+  //   if (!subscription) {
+  //     throw new NotFoundException('Subscription not found');
+  //   }
+
+  //   if (subscription.status !== 'paused') {
+  //     throw new BadRequestException('Only paused subscriptions can be resumed');
+  //   }
+
+  //   subscription.status = 'active';
+  //   await this.memberSubscriptionRepository.save(subscription);
+
+  //   return {
+  //     message: 'Subscription resumed successfully',
+  //     data: subscription,
+  //   };
+  // }
+
+  async updateSubscriptionStatus(
+    organizationId: string,
+    subscriptionId: string,
+    updateDto: UpdateSubscriptionDto,
+  ) {
     const subscription = await this.memberSubscriptionRepository.findOne({
       where: {
         id: subscriptionId,
         organization_id: organizationId,
       },
+      relations: ['plan', 'member'],
     });
 
     if (!subscription) {
       throw new NotFoundException('Subscription not found');
     }
 
-    if (subscription.status !== 'active') {
-      throw new BadRequestException('Only active subscriptions can be paused');
+    // If activating an inactive subscription, update the dates
+    if (updateDto.status === 'active' && subscription.status !== 'active') {
+      const now = new Date();
+      subscription.started_at = now;
+      subscription.expires_at = addMonths(
+        now,
+        subscription.plan.interval_count,
+      );
+      subscription.canceled_at = new Date();
     }
-
-    subscription.status = 'paused';
-    await this.memberSubscriptionRepository.save(subscription);
+    // If canceling an active subscription
+    else if (
+      updateDto.status === 'canceled' &&
+      subscription.status === 'active'
+    ) {
+      subscription.canceled_at = new Date();
+    }
+    subscription.status = updateDto.status as string;
+    subscription.metadata = updateDto.metadata || subscription.metadata;
+    const updated = await this.memberSubscriptionRepository.save(subscription);
 
     return {
-      message: 'Subscription paused successfully',
-      data: subscription,
+      message: 'Subscription status updated successfully',
+      data: updated,
     };
   }
 
-  async resume(organizationId: string, subscriptionId: string) {
-    const subscription = await this.memberSubscriptionRepository.findOne({
-      where: {
-        id: subscriptionId,
-        organization_id: organizationId,
+  async changeSubscriptionPlan(
+    organizationId: string,
+    subscriptionId: string,
+    changePlanDto: ChangeSubscriptionPlanDto,
+  ) {
+    // Start a transaction
+    return this.memberSubscriptionRepository.manager.transaction(
+      async (transactionalEntityManager) => {
+        // Get the current subscription
+        const currentSubscription = await transactionalEntityManager.findOne(
+          MemberSubscription,
+          {
+            where: {
+              id: subscriptionId,
+              organization_id: organizationId,
+            },
+            relations: ['plan'],
+          },
+        );
+        if (!currentSubscription) {
+          throw new NotFoundException('Subscription not found');
+        }
+        // Get the new plan
+        const newPlan = await transactionalEntityManager.findOne(MemberPlan, {
+          where: {
+            id: changePlanDto.newPlanId,
+            organization_id: organizationId,
+          },
+        });
+        if (!newPlan) {
+          throw new NotFoundException('New plan not found');
+        }
+        // Create a new subscription with the new plan
+        const newSubscription = this.memberSubscriptionRepository.create({
+          member_id: currentSubscription.member_id,
+          plan_id: newPlan.id,
+          organization_id: organizationId,
+          status: 'active',
+          started_at: new Date(),
+          expires_at: addMonths(new Date(), newPlan.interval_count),
+          auto_renew: currentSubscription.auto_renew,
+          metadata: {
+            ...currentSubscription.metadata,
+            previous_plan_id: currentSubscription.plan_id,
+            changed_at: new Date(),
+            ...changePlanDto.metadata,
+          },
+        });
+        // Save the new subscription
+        const createdSubscription =
+          await transactionalEntityManager.save(newSubscription);
+        // Cancel the old subscription
+        currentSubscription.status = 'canceled';
+        currentSubscription.canceled_at = new Date();
+        currentSubscription.metadata = {
+          ...currentSubscription.metadata,
+          ...changePlanDto.metadata,
+          notes:
+            `Plan changed to ${newPlan.name}. ${changePlanDto?.metadata || ''}`.trim(),
+        };
+
+        await transactionalEntityManager.save(currentSubscription);
+        return {
+          message: 'Subscription plan changed successfully',
+          data: createdSubscription,
+        };
       },
-    });
-
-    if (!subscription) {
-      throw new NotFoundException('Subscription not found');
-    }
-
-    if (subscription.status !== 'paused') {
-      throw new BadRequestException('Only paused subscriptions can be resumed');
-    }
-
-    subscription.status = 'active';
-    await this.memberSubscriptionRepository.save(subscription);
-
-    return {
-      message: 'Subscription resumed successfully',
-      data: subscription,
-    };
+    );
   }
 
   async cancel(organizationId: string, subscriptionId: string) {

@@ -148,10 +148,7 @@ export class WebhooksService {
       if (payment.invoice.member_subscription) {
         const subscription = payment.invoice.member_subscription;
 
-        if (
-          subscription.status === SubscriptionStatus.EXPIRED ||
-          subscription.status === SubscriptionStatus.PAUSED
-        ) {
+        if (subscription.status === SubscriptionStatus.EXPIRED) {
           subscription.status = SubscriptionStatus.ACTIVE;
           await this.memberSubscriptionRepository.save(subscription);
           this.logger.log(
@@ -741,10 +738,7 @@ export class WebhooksService {
 
       if (subscription) {
         // Reactivate if expired/paused
-        if (
-          subscription.status === SubscriptionStatus.EXPIRED ||
-          subscription.status === SubscriptionStatus.PAUSED
-        ) {
+        if (subscription.status === SubscriptionStatus.EXPIRED) {
           subscription.status = SubscriptionStatus.ACTIVE;
 
           // Extend subscription period

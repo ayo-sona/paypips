@@ -5,7 +5,7 @@ export function generateInvoiceNumber(organizationId: string): string {
   const random = Math.floor(Math.random() * 10000)
     .toString()
     .padStart(4, '0');
-  const orgPrefix = organizationId.substring(0, 4).toUpperCase();
+  // const orgPrefix = organizationId.substring(0, 4).toUpperCase();
 
-  return `INV-${orgPrefix}-${year}${month}-${random}`;
+  return `INV-${year}${month}-${random}`;
 }

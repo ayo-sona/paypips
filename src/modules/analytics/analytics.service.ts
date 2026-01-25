@@ -349,7 +349,7 @@ export class AnalyticsService {
     startDate: Date,
     endDate: Date,
   ) {
-    const [total, active, expired, canceled, paused] = await Promise.all([
+    const [total, active, expired, canceled] = await Promise.all([
       this.memberSubscriptionRepository.count({
         where: { organization_id: organizationId },
       }),
@@ -371,12 +371,6 @@ export class AnalyticsService {
           status: SubscriptionStatus.CANCELED,
         },
       }),
-      this.memberSubscriptionRepository.count({
-        where: {
-          organization_id: organizationId,
-          status: SubscriptionStatus.PAUSED,
-        },
-      }),
     ]);
 
     // New subscriptions in period
@@ -392,7 +386,6 @@ export class AnalyticsService {
       active_subscriptions: active,
       expired_subscriptions: expired,
       canceled_subscriptions: canceled,
-      paused_subscriptions: paused,
       new_subscriptions: newSubscriptions,
     };
   }
@@ -422,9 +415,11 @@ export class AnalyticsService {
     for (let i = 0; i <= days; i++) {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
+      // console.log('currentDate', date);
 
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
+      // console.log('nextDate', nextDate);
 
       const [revenue, subscriptions, members] = await Promise.all([
         this.paymentRepository
@@ -436,7 +431,7 @@ export class AnalyticsService {
           })
           .andWhere('status = :status', { status: PaymentStatus.SUCCESS })
           .andWhere('created_at >= :start', { start: date })
-          .andWhere('created_at <= :end', { end: nextDate })
+          .andWhere('created_at < :end', { end: nextDate })
           .getRawOne(),
         this.memberSubscriptionRepository.count({
           where: {
@@ -560,7 +555,7 @@ export class AnalyticsService {
   } {
     const now = new Date();
     let startDate: Date;
-    let endDate: Date = now;
+    let endDate: Date = new Date(now);
 
     if (
       queryDto.period === TimePeriod.CUSTOM &&
@@ -573,28 +568,41 @@ export class AnalyticsService {
     } else {
       switch (queryDto.period) {
         case TimePeriod.TODAY:
-          startDate = now;
+          startDate = new Date(now);
           startDate.setHours(0, 0, 0, 0);
           break;
         case TimePeriod.WEEK:
-          startDate = now;
-          startDate.setDate(startDate.getDate() - 7);
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
+          startDate.setHours(0, 0, 0, 0);
+
           break;
         case TimePeriod.QUARTER:
-          startDate = now;
-          startDate.setMonth(startDate.getMonth() - 3);
+          startDate = new Date(now);
+          startDate.setMonth(now.getMonth() - 3);
+          startDate.setHours(0, 0, 0, 0);
+
           break;
         case TimePeriod.YEAR:
-          startDate = now;
-          startDate.setFullYear(startDate.getFullYear() - 1);
+          startDate = new Date(now);
+          startDate.setFullYear(now.getFullYear() - 1);
+          startDate.setHours(0, 0, 0, 0);
+
           break;
         case TimePeriod.MONTH:
         default:
-          startDate = now;
-          startDate.setMonth(startDate.getMonth() - 1);
+          startDate = new Date(now);
+          startDate.setMonth(now.getMonth() - 1);
+          startDate.setHours(0, 0, 0, 0);
+
           break;
       }
     }
+
+    endDate.setHours(23, 59, 59, 999);
+
+    console.log('startDate', startDate);
+    console.log('endDate', endDate);
 
     return { startDate, endDate };
   }

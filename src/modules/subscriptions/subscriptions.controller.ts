@@ -15,6 +15,10 @@ import { FindAllMemberSubscriptionsDto } from './dto/find-all-subscriptions.dto'
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { MemberSubscription } from 'src/database/entities';
 import { CurrentOrganization } from 'src/common/decorators/organization.decorator';
+import {
+  ChangeSubscriptionPlanDto,
+  UpdateSubscriptionDto,
+} from './dto/update-subscription.dto';
 
 @Controller('members/subscriptions')
 @UseGuards(JwtAuthGuard)
@@ -73,52 +77,55 @@ export class SubscriptionsController {
     );
   }
 
-    @ApiBearerAuth('JWT-auth')
-    @ApiOperation({ summary: 'Get a member subscription by ID' })
-    @ApiResponse({
-      status: 200,
-      description: 'Subscription retrieved successfully',
-      type: MemberSubscription,
-    })
-    @ApiResponse({ status: 400, description: 'Bad Request' })
-    @ApiResponse({ status: 404, description: 'Subscription not found' })
-    @Get(':subscriptionId')
-    findOne(
-      @CurrentOrganization() organizationId: string,
-      @Param('subscriptionId') subscriptionId: string,
-    ) {
-      return this.subscriptionsService.findOneMemberSubscription(organizationId, subscriptionId);
-    }
-
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Pause a member subscription' })
-  @ApiResponse({ status: 200, description: 'Subscription paused successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request' })
-  @ApiResponse({ status: 404, description: 'Subscription not found' })
-  @Patch('/:subscriptionId/pause')
-  pause(
-    @CurrentOrganization() organizationId: string,
-    @Param('subscriptionId') subscriptionId: string,
-  ) {
-    return this.subscriptionsService.pause(organizationId, subscriptionId);
-  }
-
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Resume a member subscription' })
+  @ApiOperation({ summary: 'Get a member subscription by ID' })
   @ApiResponse({
     status: 200,
-    description: 'Subscription resumed successfully',
+    description: 'Subscription retrieved successfully',
     type: MemberSubscription,
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 404, description: 'Subscription not found' })
-  @Patch('/:subscriptionId/resume')
-  resume(
+  @Get(':subscriptionId')
+  findOne(
     @CurrentOrganization() organizationId: string,
     @Param('subscriptionId') subscriptionId: string,
   ) {
-    return this.subscriptionsService.resume(organizationId, subscriptionId);
+    return this.subscriptionsService.findOneMemberSubscription(
+      organizationId,
+      subscriptionId,
+    );
   }
+
+  // @ApiBearerAuth('JWT-auth')
+  // @ApiOperation({ summary: 'Pause a member subscription' })
+  // @ApiResponse({ status: 200, description: 'Subscription paused successfully' })
+  // @ApiResponse({ status: 400, description: 'Bad Request' })
+  // @ApiResponse({ status: 404, description: 'Subscription not found' })
+  // @Patch('/:subscriptionId/pause')
+  // pause(
+  //   @CurrentOrganization() organizationId: string,
+  //   @Param('subscriptionId') subscriptionId: string,
+  // ) {
+  //   return this.subscriptionsService.pause(organizationId, subscriptionId);
+  // }
+
+  // @ApiBearerAuth('JWT-auth')
+  // @ApiOperation({ summary: 'Resume a member subscription' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Subscription resumed successfully',
+  //   type: MemberSubscription,
+  // })
+  // @ApiResponse({ status: 400, description: 'Bad Request' })
+  // @ApiResponse({ status: 404, description: 'Subscription not found' })
+  // @Patch('/:subscriptionId/resume')
+  // resume(
+  //   @CurrentOrganization() organizationId: string,
+  //   @Param('subscriptionId') subscriptionId: string,
+  // ) {
+  //   return this.subscriptionsService.resume(organizationId, subscriptionId);
+  // }
 
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Cancel a member subscription' })
@@ -154,6 +161,47 @@ export class SubscriptionsController {
     return this.subscriptionsService.renewMemberSubscription(
       organizationId,
       subscriptionId,
+    );
+  }
+
+  @Patch(':subscriptionId/status')
+  @ApiOperation({ summary: 'Update subscription status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscription status updated successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Subscription not found' })
+  async updateStatus(
+    @CurrentOrganization() organizationId: string,
+    @Param('subscriptionId') subscriptionId: string,
+    @Body() updateDto: UpdateSubscriptionDto,
+  ) {
+    return this.subscriptionsService.updateSubscriptionStatus(
+      organizationId,
+      subscriptionId,
+      updateDto,
+    );
+  }
+
+  @Post(':subscriptionId/change-plan')
+  @ApiOperation({ summary: 'Change subscription plan' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscription plan changed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Subscription or new plan not found',
+  })
+  async changePlan(
+    @CurrentOrganization() organizationId: string,
+    @Param('subscriptionId') subscriptionId: string,
+    @Body() changePlanDto: ChangeSubscriptionPlanDto,
+  ) {
+    return this.subscriptionsService.changeSubscriptionPlan(
+      organizationId,
+      subscriptionId,
+      changePlanDto,
     );
   }
 }

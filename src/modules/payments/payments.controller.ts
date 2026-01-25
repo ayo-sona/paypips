@@ -13,11 +13,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentOrganization } from '../../common/decorators/organization.decorator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Throttle } from '@nestjs/throttler';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @Controller('payments')
 @ApiBearerAuth('JWT-auth')
@@ -74,7 +70,7 @@ export class PaymentsController {
     return this.paymentsService.getMemberPaymentStats(organizationId);
   }
 
-  @Get('member/:memberId')
+  @Get('member/:userId')
   @ApiOperation({ summary: 'Get member payments' })
   @ApiResponse({
     status: 200,
@@ -83,24 +79,24 @@ export class PaymentsController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   getMemberPayments(
     @CurrentOrganization() organizationId: string,
-    @Param('memberId') memberId: string,
+    @Param('userId') userId: string,
     @Query() paginationDto: PaginationDto,
   ) {
     return this.paymentsService.getPaymentsByMember(
       organizationId,
-      memberId,
+      userId,
       paginationDto,
     );
   }
 
-  @Get(':id')
+  @Get(':paymentId')
   @ApiOperation({ summary: 'Get a payment by ID' })
   @ApiResponse({ status: 200, description: 'Payment retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   findOne(
     @CurrentOrganization() organizationId: string,
-    @Param('id') id: string,
+    @Param('paymentId') paymentId: string,
   ) {
-    return this.paymentsService.findOne(organizationId, id);
+    return this.paymentsService.findOne(organizationId, paymentId);
   }
 }

@@ -60,7 +60,7 @@ export class PaymentsService {
     }
 
     // Generate unique payment reference
-    const reference = `PAY-${Date.now()}-${invoice.id.substring(0, 8)}`;
+    const reference = `REE-${Date.now()}-${invoice.id.substring(0, 8)}`;
 
     // Create payment record
     const payment = this.paymentRepository.create({
@@ -123,7 +123,7 @@ export class PaymentsService {
         provider_reference: reference,
         payer_org_id: organizationId,
       },
-      relations: ['invoices', 'users'],
+      relations: ['invoice', 'payer_user'],
     });
 
     if (!payment) {
@@ -198,7 +198,7 @@ export class PaymentsService {
 
     const [payments, total] = await this.paymentRepository.findAndCount({
       where: whereCondition,
-      relations: ['users', 'invoices'],
+      relations: ['payer_user', 'invoice'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,
@@ -216,7 +216,7 @@ export class PaymentsService {
         id: paymentId,
         payer_org_id: organizationId,
       },
-      relations: ['users', 'invoices'],
+      relations: ['payer_user', 'invoice'],
     });
 
     if (!payment) {
@@ -231,7 +231,7 @@ export class PaymentsService {
 
   async getPaymentsByMember(
     organizationId: string,
-    memberId: string,
+    userId: string,
     paginationDto: PaginationDto,
   ) {
     const { page = 1, limit = 10 } = paginationDto;
@@ -240,9 +240,9 @@ export class PaymentsService {
     const [payments, total] = await this.paymentRepository.findAndCount({
       where: {
         payer_org_id: organizationId,
-        payer_user_id: memberId,
+        payer_user_id: userId,
       },
-      relations: ['invoices'],
+      relations: ['invoice'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,

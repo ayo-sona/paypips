@@ -162,21 +162,6 @@ export class PaystackService {
   convertToNaira(kobo: number): number {
     return kobo / 100;
   }
-
-  // Generate unique reference
-  static generateReference(prefix = 'REE') {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000);
-    return `${prefix}_${timestamp}_${random}`;
-  }
-
-  // Format amount for display
-  static formatAmount(amount) {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-    }).format(amount);
-  }
 }
 
 // ReeTrack

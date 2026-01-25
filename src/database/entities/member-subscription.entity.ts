@@ -15,7 +15,7 @@ import { Invoice } from './invoice.entity';
 
 export enum SubscriptionStatus {
   ACTIVE = 'active',
-  PAUSED = 'paused',
+  // PAUSED = 'paused',
   CANCELED = 'canceled',
   EXPIRED = 'expired',
 }
