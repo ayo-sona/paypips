@@ -14,6 +14,7 @@ import { CurrentOrganization } from '../../common/decorators/organization.decora
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
 @Controller('payments')
 @ApiBearerAuth('JWT-auth')
@@ -27,12 +28,14 @@ export class PaymentsController {
   @ApiResponse({ status: 200, description: 'Payment initialized successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   initializePayment(
+    @CurrentUser() user: any,
     @CurrentOrganization() organizationId: string,
     @Body() initializePaymentDto: InitializePaymentDto,
   ) {
     return this.paymentsService.initializePayment(
       organizationId,
       initializePaymentDto,
+      user.id,
     );
   }
 

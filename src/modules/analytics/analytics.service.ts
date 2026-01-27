@@ -1,16 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, LessThan, MoreThan } from 'typeorm';
-import {
-  MemberSubscription,
-  SubscriptionStatus,
-} from '../../database/entities/member-subscription.entity';
+import { MemberSubscription } from '../../database/entities/member-subscription.entity';
 import { Invoice } from '../../database/entities/invoice.entity';
+import { Payment } from '../../database/entities/payment.entity';
 import {
-  Payment,
   PaymentPayerType,
   PaymentStatus,
-} from '../../database/entities/payment.entity';
+  SubscriptionStatus,
+} from 'src/common/enums/enums';
 import { Member } from '../../database/entities/member.entity';
 import { MemberPlan } from '../../database/entities/member-plan.entity';
 import {

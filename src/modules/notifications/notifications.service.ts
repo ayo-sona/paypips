@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
 import { NotificationType } from './interfaces/notification.interface';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class NotificationsService {
@@ -16,6 +17,7 @@ export class NotificationsService {
   constructor(
     private emailService: EmailService,
     private smsService: SmsService,
+    private configService: ConfigService,
   ) {}
 
   async sendWelcomeEmail(data: {
@@ -74,11 +76,21 @@ export class NotificationsService {
     invoiceNumber: string;
     paymentUrl: string;
   }) {
+    const emailHtml = `
+    <h2>Payment Failed</h2>
+    <p>Hi ${data.memberName},</p>
+    <p>Your payment of ${data.currency} ${data.amount} for invoice ${data.invoiceNumber} failed.</p>
+    <p><strong>Reason:</strong> ${data.failureReason}</p>
+    <p>Please update your payment method or try again:</p>
+    <a href="${data.paymentUrl}">Pay Now</a>
+  `;
+
     await this.emailService.sendEmail({
       to: data.email,
       subject: 'Payment Failed - Action Required',
       template: 'payment_failed',
       context: data,
+      // html: emailHtml,
     });
 
     if (data.phone) {
@@ -89,6 +101,36 @@ export class NotificationsService {
     }
 
     this.logger.log(`Payment failed notification sent to ${data.email}`);
+    this.stats.emailsSent++;
+  }
+
+  async sendPaymentReminderNotification(data: {
+    email: string;
+    memberName: string;
+    subscriptionName: string;
+    amount: number;
+    currency: string;
+    invoiceNumber: string;
+    paymentUrl: string;
+    dueDate: Date;
+  }) {
+    await this.emailService.sendEmail({
+      to: data.email,
+      subject: `Payment Reminder: Action Required for ${data.subscriptionName}`,
+      template: 'payment_reminder',
+      context: {
+        memberName: data.memberName,
+        subscriptionName: data.subscriptionName,
+        amount: data.amount.toLocaleString('en-NG', {
+          style: 'currency',
+          currency: data.currency || 'NGN',
+        }),
+        invoiceNumber: data.invoiceNumber,
+        paymentUrl: data.paymentUrl,
+        dueDate: data.dueDate.toLocaleDateString(),
+      },
+    });
+    this.logger.log(`Payment reminder sent to ${data.email}`);
     this.stats.emailsSent++;
   }
 
@@ -167,6 +209,79 @@ export class NotificationsService {
     this.stats.emailsSent++;
   }
 
+  async sendSubscriptionRenewedNotification(data: {
+    email: string;
+    memberName: string;
+    subscriptionName: string;
+    amount: number;
+    currency: string;
+    nextBillingDate: Date;
+  }) {
+    await this.emailService.sendEmail({
+      to: data.email,
+      subject: `Subscription Renewal Confirmation - ${data.subscriptionName}`,
+      template: 'subscription_renewed',
+      context: {
+        memberName: data.memberName,
+        subscriptionName: data.subscriptionName,
+        amount: data.amount.toLocaleString('en-NG', {
+          style: 'currency',
+          currency: data.currency || 'NGN',
+        }),
+        nextBillingDate: data.nextBillingDate.toLocaleDateString(),
+      },
+    });
+    this.logger.log(`Subscription renewal confirmation sent to ${data.email}`);
+    this.stats.emailsSent++;
+  }
+
+  async sendRenewalFailedNotification(data: {
+    email: string;
+    memberName: string;
+    subscriptionName: string;
+    amount: number;
+    currency: string;
+    invoiceNumber?: string;
+    paymentUrl: string;
+    expiresAt: Date;
+  }) {
+    const emailHtml = `
+    <h2>Subscription Renewal Failed</h2>
+    <p>Hi ${data.memberName},</p>
+    <p>We couldn't renew your ${data.subscriptionName} subscription.</p>
+    <p><strong>Amount:</strong> ${data.currency} ${data.amount}</p>
+    <p><strong>Action Required:</strong></p>
+    <ul>
+      <li>Update your payment method</li>
+      <li>Or make a manual payment</li>
+    </ul>
+    <p>Your subscription will expire on ${data.expiresAt.toDateString()}</p>
+    <a href="${data.paymentUrl}">Update Payment Method</a>
+  `;
+
+    await this.emailService.sendEmail({
+      to: data.email,
+      subject: `⚠️ Action Required: Subscription Renewal Failed - ${data.subscriptionName}`,
+      template: 'renewal_failed',
+      context: {
+        memberName: data.memberName,
+        subscriptionName: data.subscriptionName,
+        amount: data.amount.toLocaleString('en-NG', {
+          style: 'currency',
+          currency: data.currency || 'NGN',
+        }),
+        invoiceNumber: data.invoiceNumber,
+        paymentUrl: data.paymentUrl,
+        expiresAt: data.expiresAt.toLocaleDateString(),
+        supportEmail:
+          this.configService.get('SUPPORT_EMAIL') || 'support@reetrack.com',
+      },
+      // html: emailHtml
+    });
+    this.logger.log(`Renewal failed notification sent to ${data.email}`);
+    this.stats.emailsSent++;
+  }
+
   async sendInvoiceCreatedNotification(data: {
     email: string;
     memberName: string;
@@ -213,6 +328,40 @@ export class NotificationsService {
     }
 
     this.logger.log(`Invoice overdue notification sent to ${data.email}`);
+    this.stats.emailsSent++;
+  }
+
+  async sendSubscriptionCanceledNotification(data: {
+    email: string;
+    memberName: string;
+    subscriptionName: string;
+    expiresAt: Date;
+  }) {
+    await this.emailService.sendEmail({
+      to: data.email,
+      subject: 'Your subscription has been canceled',
+      template: 'subscription_canceled',
+      context: data,
+    });
+
+    this.logger.log(`Subscription canceled notification sent to ${data.email}`);
+    this.stats.emailsSent++;
+  }
+
+  async sendOrgSubscriptionCanceledNotification(data: {
+    email: string;
+    memberName: string;
+    subscriptionName: string;
+    expiresAt: Date;
+  }) {
+    await this.emailService.sendEmail({
+      to: data.email,
+      subject: 'Your subscription has been canceled',
+      template: 'subscription_canceled',
+      context: data,
+    });
+
+    this.logger.log(`Subscription canceled notification sent to ${data.email}`);
     this.stats.emailsSent++;
   }
 }

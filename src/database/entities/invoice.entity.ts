@@ -13,21 +13,12 @@ import { User } from './user.entity';
 import { Payment } from './payment.entity';
 import { MemberSubscription } from './member-subscription.entity';
 import { IsEnum } from 'class-validator';
-import { PaymentProvider } from './payment.entity';
 import { OrganizationSubscription } from './organization-subscription.entity';
-
-export enum InvoiceStatus {
-  PENDING = 'pending',
-  PAID = 'paid',
-  CANCELLED = 'cancelled',
-  FAILED = 'failed',
-  REFUNDED = 'refunded',
-}
-
-export enum InvoiceBilledType {
-  ORGANIZATION = 'organization',
-  USER = 'user',
-}
+import {
+  InvoiceBilledType,
+  InvoiceStatus,
+  PaymentProvider,
+} from 'src/common/enums/enums';
 
 @Entity('invoices')
 export class Invoice {

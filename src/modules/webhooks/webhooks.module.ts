@@ -6,7 +6,10 @@ import { Payment } from '../../database/entities/payment.entity';
 import { Invoice } from '../../database/entities/invoice.entity';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { OrganizationSubscription } from 'src/database/entities';
+import {
+  OrganizationSubscription,
+  OrganizationUser,
+} from 'src/database/entities';
 import { Stripe } from 'stripe';
 import { ConfigService } from '@nestjs/config';
 
@@ -17,6 +20,7 @@ import { ConfigService } from '@nestjs/config';
       Invoice,
       MemberSubscription,
       OrganizationSubscription,
+      OrganizationUser,
     ]),
     NotificationsModule,
   ],

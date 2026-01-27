@@ -10,8 +10,9 @@ import {
   OneToMany,
 } from 'typeorm';
 import { Organization } from './organization.entity';
-import { OrganizationPlan } from './organization_plan.entity';
+import { OrganizationPlan } from './organization-plan.entity';
 import { Invoice } from './invoice.entity';
+import { SubscriptionStatus } from 'src/common/enums/enums';
 
 @Entity('organization_subscriptions')
 export class OrganizationSubscription {
@@ -21,29 +22,24 @@ export class OrganizationSubscription {
   @Column({ type: 'uuid', unique: true })
   organization_id: string;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'uuid' })
   plan_id: string;
 
-  @Column({ type: 'text', default: 'active' })
-  status: string;
+  @Column({
+    type: 'enum',
+    enum: SubscriptionStatus,
+    default: SubscriptionStatus.ACTIVE,
+  })
+  status: SubscriptionStatus;
 
-  @Column({ type: 'timestamp with time zone', nullable: true })
+  @Column({ type: 'timestamp with time zone' })
   started_at: Date;
 
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  current_period_start: Date;
+  @Column({ type: 'timestamp with time zone' })
+  expires_at: Date;
 
   @Column({ type: 'timestamp with time zone', nullable: true })
-  current_period_end: Date;
-
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  trial_end: Date;
-
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  canceled_at: Date;
-
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  ended_at: Date;
+  canceled_at: Date | null;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;

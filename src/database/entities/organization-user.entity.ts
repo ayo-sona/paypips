@@ -12,13 +12,7 @@ import {
 import { User } from './user.entity';
 import { Organization } from './organization.entity';
 import { Member } from './member.entity';
-
-export enum OrgRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  STAFF = 'STAFF',
-  MEMBER = 'MEMBER',
-}
+import { OrgRole } from 'src/common/enums/enums';
 
 @Entity('organization_users')
 @Unique(['user_id', 'organization_id'])
@@ -43,11 +37,19 @@ export class OrganizationUser {
   status: string;
 
   @Column({ type: 'text', nullable: true })
-  stripe_customer_id: string | null;
+  paystack_authorization_code: string | null;
 
   @Column({ type: 'text', nullable: true })
-  stripe_default_payment_method: string;
+  paystack_card_last4: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  paystack_card_brand: string | null;
+
+  // @Column({ type: 'text', nullable: true })
+  // stripe_customer_id: string | null;
+
+  // @Column({ type: 'text', nullable: true })
+  // stripe_default_payment_method: string;
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

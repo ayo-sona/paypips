@@ -11,8 +11,8 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { generateInvoiceNumber } from '../../common/utils/invoice-number.util';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
-import { InvoiceStatus } from '../../database/entities/invoice.entity';
-import { InvoiceBilledType } from '../../database/entities/invoice.entity';
+import { InvoiceStatus } from 'src/common/enums/enums';
+import { InvoiceBilledType } from 'src/common/enums/enums';
 
 @Injectable()
 export class InvoicesService {

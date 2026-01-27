@@ -9,13 +9,24 @@ import { MemberPlan } from '../../database/entities/member-plan.entity';
 import { Member } from '../../database/entities/member.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
+import { PaymentsModule } from '../payments/payments.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { OrganizationUser } from 'src/database/entities';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-    TypeOrmModule.forFeature([MemberSubscription, Invoice, MemberPlan, Member]),
+    TypeOrmModule.forFeature([
+      MemberSubscription,
+      Invoice,
+      MemberPlan,
+      Member,
+      OrganizationUser,
+    ]),
     NotificationsModule,
     AuthModule,
+    PaymentsModule,
+    SubscriptionsModule,
   ],
   controllers: [CronController],
   providers: [CronService],

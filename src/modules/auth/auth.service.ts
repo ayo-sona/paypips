@@ -20,7 +20,7 @@ import { LoginDto } from '../../common/dto/login.dto';
 import { MemberRegisterDto } from 'src/common/dto/member-register.dto';
 import { Member } from 'src/database/entities';
 import { OrganizationUser } from 'src/database/entities/organization-user.entity';
-import { OrgRole } from 'src/database/entities/organization-user.entity';
+import { OrgRole } from 'src/common/enums/enums';
 import { OrganizationInvite } from 'src/database/entities/organization-invite.entity';
 import { StaffRegisterDto } from 'src/common/dto/staff-register.dto';
 import type { Request, Response } from 'express';
@@ -90,7 +90,6 @@ export class AuthService {
       email: registerDto.organizationEmail,
       slug,
       status: 'active',
-      trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     });
 
     const savedOrg = await this.organizationRepository.save(organization);

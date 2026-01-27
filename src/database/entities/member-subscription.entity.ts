@@ -12,13 +12,7 @@ import { Member } from './member.entity';
 import { MemberPlan } from './member-plan.entity';
 import { Organization } from './organization.entity';
 import { Invoice } from './invoice.entity';
-
-export enum SubscriptionStatus {
-  ACTIVE = 'active',
-  // PAUSED = 'paused',
-  CANCELED = 'canceled',
-  EXPIRED = 'expired',
-}
+import { SubscriptionStatus } from 'src/common/enums/enums';
 
 @Entity('member_subscriptions')
 export class MemberSubscription {
@@ -44,7 +38,7 @@ export class MemberSubscription {
   expires_at: Date;
 
   @Column({ type: 'timestamp with time zone', nullable: true })
-  canceled_at: Date;
+  canceled_at: Date | null;
 
   @Column({ type: 'boolean', default: true })
   auto_renew: boolean;

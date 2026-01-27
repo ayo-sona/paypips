@@ -9,10 +9,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Organization } from '../../database/entities/organization.entity';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import {
-  OrganizationUser,
-  OrgRole,
-} from '../../database/entities/organization-user.entity';
+import { OrganizationUser } from '../../database/entities/organization-user.entity';
+import { OrgRole } from 'src/common/enums/enums';
 import { AuthService } from '../auth/auth.service';
 import { MemberPlan } from 'src/database/entities';
 

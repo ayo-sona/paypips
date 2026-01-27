@@ -11,13 +11,7 @@ import { IsEnum } from 'class-validator';
 import { Organization } from './organization.entity';
 import { User } from './user.entity';
 import { ManyToOne, JoinColumn } from 'typeorm';
-
-export enum OrgRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  STAFF = 'STAFF',
-  MEMBER = 'MEMBER',
-}
+import { OrgRole } from 'src/common/enums/enums';
 
 @Entity('organization_invites')
 export class OrganizationInvite {

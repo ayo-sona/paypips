@@ -7,7 +7,7 @@ import {
   IsArray,
   Min,
 } from 'class-validator';
-import { PlanInterval } from 'src/database/entities/member-plan.entity';
+import { PlanInterval } from 'src/common/enums/enums';
 
 export class CreatePlanDto {
   @ApiProperty({
@@ -56,15 +56,6 @@ export class CreatePlanDto {
   @IsNumber()
   @Min(1)
   intervalCount?: number = 1;
-
-  @ApiProperty({
-    description: 'Trial period days',
-    example: '14',
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  trialPeriodDays?: number = 0;
 
   @ApiProperty({
     description: 'Plan features',

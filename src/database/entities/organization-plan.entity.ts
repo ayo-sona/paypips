@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Organization } from './organization.entity';
+import { PlanInterval } from 'src/common/enums/enums';
 
 @Entity('organization_plans')
 export class OrganizationPlan {
@@ -58,8 +59,8 @@ export class OrganizationPlan {
     description: 'Plan interval',
     example: 'month',
   })
-  @Column({ type: 'text' })
-  interval: string;
+  @Column({ type: 'enum', enum: PlanInterval })
+  interval: PlanInterval;
 
   @ApiProperty({
     description: 'Plan interval count',
@@ -68,12 +69,12 @@ export class OrganizationPlan {
   @Column({ type: 'int', default: 1 })
   interval_count: number;
 
-  @ApiProperty({
-    description: 'Plan trial period days',
-    example: 14,
-  })
-  @Column({ type: 'int', default: 0 })
-  trial_period_days: number;
+  // @ApiProperty({
+  //   description: 'Plan trial period days',
+  //   example: 14,
+  // })
+  // @Column({ type: 'int', default: 0 })
+  // trial_period_days: number;
 
   @ApiProperty({
     description: 'Plan features',

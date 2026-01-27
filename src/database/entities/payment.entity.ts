@@ -11,34 +11,11 @@ import { Organization } from './organization.entity';
 import { Invoice } from './invoice.entity';
 import { User } from './user.entity';
 import { IsEnum } from 'class-validator';
-
-export enum PaymentStatus {
-  PENDING = 'pending',
-  SUCCESS = 'success',
-  FAILED = 'failed',
-  REFUNDED = 'refunded',
-  DISPUTED = 'disputed',
-}
-
-export enum StripePaymentIntentStatus {
-  SUCCEEDED = 'succeeded',
-  CANCELLED = 'cancelled',
-  PROCESSING = 'processing',
-  REQUIRES_ACTION = 'requires_action',
-  REQUIRES_CAPTURE = 'requires_capture',
-  REQUIRES_CONFIRMATION = 'requires_confirmation',
-  REQUIRES_PAYMENT_METHOD = 'requires_payment_method',
-}
-
-export enum PaymentProvider {
-  PAYSTACK = 'paystack',
-  STRIPE = 'stripe',
-}
-
-export enum PaymentPayerType {
-  ORGANIZATION = 'organization',
-  USER = 'user',
-}
+import {
+  PaymentPayerType,
+  PaymentProvider,
+  PaymentStatus,
+} from 'src/common/enums/enums';
 
 @Entity('payments')
 export class Payment {

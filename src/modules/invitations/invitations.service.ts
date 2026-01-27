@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  OrganizationInvite,
-  OrgRole,
-} from '../../database/entities/organization-invite.entity';
+import { OrganizationInvite } from '../../database/entities/organization-invite.entity';
+import { OrgRole } from 'src/common/enums/enums';
 import { Organization } from '../../database/entities/organization.entity';
 import { User } from '../../database/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';

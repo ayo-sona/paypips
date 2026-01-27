@@ -7,17 +7,20 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { Payment } from '../../database/entities/payment.entity';
 import {
-  Payment,
   PaymentProvider,
   PaymentStatus,
-} from '../../database/entities/payment.entity';
-import { Invoice, InvoiceStatus } from '../../database/entities/invoice.entity';
+  InvoiceStatus,
+  PaymentPayerType,
+} from 'src/common/enums/enums';
+import { Invoice } from '../../database/entities/invoice.entity';
 import { Member } from '../../database/entities/member.entity';
 import { PaystackService } from './paystack.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
+import { MemberSubscription, OrganizationUser } from 'src/database/entities';
 
 @Injectable()
 export class PaymentsService {
@@ -33,6 +36,12 @@ export class PaymentsService {
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
 
+    @InjectRepository(OrganizationUser)
+    private organizationUserRepository: Repository<OrganizationUser>,
+
+    @InjectRepository(MemberSubscription)
+    private memberSubscriptionRepository: Repository<MemberSubscription>,
+
     private paystackService: PaystackService,
     private configService: ConfigService,
     private notificationsService: NotificationsService,
@@ -41,6 +50,7 @@ export class PaymentsService {
   async initializePayment(
     organizationId: string,
     initializePaymentDto: InitializePaymentDto,
+    userId: string,
   ) {
     // Get invoice
     const invoice = await this.invoiceRepository.findOne({
@@ -55,7 +65,7 @@ export class PaymentsService {
       throw new NotFoundException('Invoice not found');
     }
 
-    if (invoice.status === 'paid') {
+    if (invoice.status === InvoiceStatus.PAID) {
       throw new BadRequestException('Invoice already paid');
     }
 
@@ -149,6 +159,27 @@ export class PaymentsService {
         verified_at: new Date().toISOString(),
       };
 
+      // Save authorization code for future recurring charges
+      if (
+        data.authorization?.authorization_code &&
+        payment.metadata.subscription_id
+      ) {
+        const orgUser = await this.organizationUserRepository.findOne({
+          where: {
+            organization_id: organizationId,
+            user_id: payment.payer_user_id,
+          },
+        });
+
+        if (orgUser) {
+          orgUser.paystack_authorization_code =
+            data.authorization.authorization_code;
+          orgUser.paystack_card_last4 = data.authorization.last4;
+          orgUser.paystack_card_brand = data.authorization.brand;
+          await this.organizationUserRepository.save(orgUser);
+        }
+      }
+
       // Update invoice status
       if (payment.invoice) {
         payment.invoice.status = InvoiceStatus.PAID;
@@ -181,6 +212,112 @@ export class PaymentsService {
         gateway_response: data.gateway_response,
       },
     };
+  }
+
+  async chargeRecurring(subscriptionId: string, invoiceId: string) {
+    const subscription = await this.memberSubscriptionRepository.findOne({
+      where: { id: subscriptionId },
+      relations: ['member', 'member.user', 'plan'],
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    const invoice = await this.invoiceRepository.findOne({
+      where: { id: invoiceId },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    // Get organization user to fetch authorization code
+    const orgUser = await this.organizationUserRepository.findOne({
+      where: {
+        organization_id: subscription.organization_id,
+        user_id: subscription.member.user_id,
+      },
+    });
+
+    if (!orgUser?.paystack_authorization_code) {
+      throw new BadRequestException(
+        'No saved card found for recurring billing',
+      );
+    }
+
+    // Generate reference
+    const reference = `REE-${Date.now()}-${invoice.id.substring(0, 8)}`;
+
+    // Create payment record
+    const payment = this.paymentRepository.create({
+      invoice_id: invoice.id,
+      payer_user_id: subscription.member.user_id,
+      payer_org_id: subscription.organization_id,
+      payer_type: PaymentPayerType.USER,
+      amount: invoice.amount,
+      currency: invoice.currency,
+      provider: PaymentProvider.PAYSTACK,
+      provider_reference: reference,
+      status: PaymentStatus.PENDING,
+      metadata: {
+        invoice_number: invoice.invoice_number,
+        subscription_id: subscriptionId,
+        auto_charge: true,
+      },
+    });
+
+    await this.paymentRepository.save(payment);
+
+    // Charge the saved card
+    try {
+      const amountInKobo = this.paystackService.convertToKobo(invoice.amount);
+
+      const result = await this.paystackService.chargeAuthorization(
+        orgUser.paystack_authorization_code,
+        subscription.member.user.email,
+        amountInKobo,
+        reference,
+        {
+          payment_id: payment.id,
+          invoice_id: invoice.id,
+          subscription_id: subscriptionId,
+          auto_charge: true,
+        },
+      );
+
+      // Update payment status based on result
+      if (result.data.status === 'success') {
+        payment.status = PaymentStatus.SUCCESS;
+        invoice.status = InvoiceStatus.PAID;
+        invoice.paid_at = new Date();
+
+        await Promise.all([
+          this.paymentRepository.save(payment),
+          this.invoiceRepository.save(invoice),
+        ]);
+
+        return { success: true, payment, reference };
+      } else {
+        payment.status = PaymentStatus.FAILED;
+        payment.metadata = {
+          ...payment.metadata,
+          failure_reason: result.data.gateway_response || 'Payment declined',
+        };
+        await this.paymentRepository.save(payment);
+
+        return { success: false, payment, reference };
+      }
+    } catch (error) {
+      payment.status = PaymentStatus.FAILED;
+      payment.metadata = {
+        ...payment.metadata,
+        failure_reason: error.message,
+      };
+      await this.paymentRepository.save(payment);
+
+      throw error;
+    }
   }
 
   async findAll(

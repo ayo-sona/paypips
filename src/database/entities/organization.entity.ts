@@ -13,7 +13,7 @@ import { OrganizationSubscription } from './organization-subscription.entity';
 import { MemberPlan } from './member-plan.entity';
 import { OrganizationInvite } from './organization-invite.entity';
 import { MemberSubscription } from './member-subscription.entity';
-import { OrganizationPlan } from './organization_plan.entity';
+import { OrganizationPlan } from './organization-plan.entity';
 
 @Entity('organizations')
 export class Organization {
@@ -43,13 +43,6 @@ export class Organization {
 
   @Column({ type: 'text', default: 'active' })
   status: string;
-
-  @ApiProperty({
-    description: 'Trial Ends At',
-    example: '2025-01-01T00:00:00.000Z',
-  })
-  @Column({ type: 'timestamp with time zone', nullable: true })
-  trial_ends_at: Date;
 
   @ApiProperty({
     description: 'Created At',

@@ -11,14 +11,7 @@ import {
 import { Organization } from './organization.entity';
 import { MemberSubscription } from './member-subscription.entity';
 import { ApiProperty } from '@nestjs/swagger';
-
-export enum PlanInterval {
-  MONTHLY = 'monthly',
-  YEARLY = 'yearly',
-  WEEKLY = 'weekly',
-  BIWEEKLY = 'biweekly',
-  QUARTERLY = 'quarterly',
-}
+import { PlanInterval } from 'src/common/enums/enums';
 
 @Entity('member_plans')
 export class MemberPlan {

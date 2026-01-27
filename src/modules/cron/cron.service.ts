@@ -26,19 +26,28 @@
 //   timeZone: 'Africa/Lagos', // Set timezone
 // })
 
-// src/modules/cron/cron.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, Between, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
-import { Invoice, InvoiceStatus } from '../../database/entities/invoice.entity';
+import { Invoice } from '../../database/entities/invoice.entity';
+import {
+  InvoiceBilledType,
+  InvoiceStatus,
+  PaymentProvider,
+  PlanInterval,
+  SubscriptionStatus,
+} from 'src/common/enums/enums';
 import { MemberPlan } from '../../database/entities/member-plan.entity';
 import { Member } from '../../database/entities/member.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthService } from '../auth/auth.service';
+import { OrganizationUser } from 'src/database/entities';
 import { generateInvoiceNumber } from '../../common/utils/invoice-number.util';
+import { PaymentsService } from '../payments/payments.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @Injectable()
 export class CronService {
@@ -57,9 +66,14 @@ export class CronService {
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
 
+    @InjectRepository(OrganizationUser)
+    private organizationUserRepository: Repository<OrganizationUser>,
+
     private notificationsService: NotificationsService,
     private configService: ConfigService,
     private authService: AuthService,
+    private paymentsService: PaymentsService,
+    private subscriptionsService: SubscriptionsService,
   ) {}
 
   // CHECK AND EXPIRE SUBSCRIPTIONS
@@ -97,67 +111,6 @@ export class CronService {
 
     this.logger.log(`✅ Expired ${expiredSubscriptions.length} subscriptions`);
   }
-
-  // CHECK TRIALING SUBSCRIPTIONS
-  // Convert trials to active and generate invoices
-  // Runs every hour
-  //   @Cron(CronExpression.EVERY_HOUR)
-  //   async checkTrialingSubscriptions() {
-  //     this.logger.log('🔍 Checking trialing subscriptions...');
-
-  //     const now = new Date();
-
-  //     const trialEndedSubscriptions = await this.memberSubscriptionRepository.find({
-  //       where: {
-  //         status: 'trialing',
-  //         trial_end: LessThan(now),
-  //       },
-  //       relations: ['plan', 'member', 'organization'],
-  //     });
-
-  //     for (const subscription of trialEndedSubscriptions) {
-  //       subscription.status = 'active';
-  //       await this.memberSubscriptionRepository.save(subscription);
-
-  //       // Create invoice for first payment
-  //       const invoice = this.invoiceRepository.create({
-  //         organization_id: subscription.organization_id,
-  //         subscription_id: subscription.id,
-  //         member_id: subscription.member_id,
-  //         invoice_number: generateInvoiceNumber(subscription.organization_id),
-  //         amount: subscription.plan.amount,
-  //         currency: subscription.plan.currency,
-  //         status: 'pending',
-  //         due_date: subscription.expires_at,
-  //         metadata: {
-  //           plan_name: subscription.plan.name,
-  //           trial_ended: true,
-  //         },
-  //       });
-
-  //       await this.invoiceRepository.save(invoice);
-
-  //       // Send notification
-  //       const frontendUrl = this.configService.get('frontend.url');
-  //       await this.notificationsService.sendInvoiceCreatedNotification({
-  //         email: subscription.member.user.email,
-  //         memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
-  //         invoiceNumber: invoice.invoice_number,
-  //         amount: invoice.amount,
-  //         currency: invoice.currency,
-  //         dueDate: invoice.due_date,
-  //         paymentUrl: `${frontendUrl}/invoices/${invoice.id}/pay`,
-  //       });
-
-  //       this.logger.log(
-  //         `Trial ended for subscription ${subscription.id}, invoice created`,
-  //       );
-  //     }
-
-  //     this.logger.log(
-  //       `✅ Processed ${trialEndedSubscriptions.length} trial subscriptions`,
-  //     );
-  //   }
 
   // SEND EXPIRY REMINDERS
   // Notify members 7 days, 3 days, and 1 day before expiry
@@ -419,6 +372,139 @@ export class CronService {
     `);
 
     // You could save these to a DailyStats table for historical analytics
+  }
+
+  /**
+   * Check for expiring subscriptions daily
+   * Runs at 00:00 (midnight) every day (0 0 * * *)
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async processRenewals() {
+    this.logger.log('Starting subscription renewal process...');
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(23, 59, 59, 999);
+
+    // Find subscriptions expiring tomorrow
+    const expiringSubscriptions = await this.memberSubscriptionRepository.find({
+      where: {
+        expires_at: LessThan(tomorrow),
+        auto_renew: true,
+        status: SubscriptionStatus.ACTIVE,
+      },
+      relations: ['member', 'member.user', 'plan', 'organization'],
+    });
+
+    this.logger.log(
+      `Found ${expiringSubscriptions.length} subscriptions to renew`,
+    );
+
+    for (const subscription of expiringSubscriptions) {
+      await this.processSubscriptionRenewal(subscription);
+    }
+
+    this.logger.log('Subscription renewal process completed');
+  }
+
+  private async processSubscriptionRenewal(subscription: MemberSubscription) {
+    try {
+      // 1. Create renewal invoice
+      const invoice = await this.invoiceRepository.save({
+        issuer_org_id: subscription.organization_id,
+        billed_user_id: subscription.member.user_id,
+        billed_type: InvoiceBilledType.USER,
+        amount: subscription.plan.price,
+        currency: subscription.plan.currency,
+        status: InvoiceStatus.PENDING,
+        due_date: subscription.expires_at,
+        invoice_number: `INV-${Date.now()}-${subscription.id.substring(0, 8)}`,
+        description: `${subscription.plan.name} - Renewal`,
+        member_subscription_id: subscription.id,
+        payment_provider: PaymentProvider.PAYSTACK,
+      });
+
+      // 2. Check if user has saved card
+      const orgUser = await this.organizationUserRepository.findOne({
+        where: {
+          organization_id: subscription.organization_id,
+          user_id: subscription.member.user_id,
+        },
+      });
+
+      if (!orgUser?.paystack_authorization_code) {
+        // No saved card - send payment reminder
+        await this.sendPaymentReminder(subscription, invoice);
+        return;
+      }
+
+      // 3. Attempt auto-charge
+      const result = await this.paymentsService.chargeRecurring(
+        subscription.id,
+        invoice.id,
+      );
+
+      if (result.success) {
+        // Payment successful - extend subscription
+        await this.subscriptionsService.renewMemberSubscription(
+          orgUser.organization_id,
+          subscription.id,
+        );
+
+        this.logger.log(`Successfully renewed subscription ${subscription.id}`);
+      } else {
+        // Payment failed - send notification
+        await this.handleFailedRenewal(subscription, invoice);
+
+        this.logger.warn(`Failed to renew subscription ${subscription.id}`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error processing renewal for subscription ${subscription.id}: ${error.message}`,
+      );
+
+      // Send failure notification
+      await this.handleFailedRenewal(subscription, null);
+    }
+  }
+
+  private async sendPaymentReminder(
+    subscription: MemberSubscription,
+    invoice: Invoice,
+  ) {
+    await this.notificationsService.sendPaymentReminderNotification({
+      email: subscription.member.user.email,
+      memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
+      subscriptionName: subscription.plan.name,
+      amount: invoice.amount,
+      currency: invoice.currency,
+      invoiceNumber: invoice.invoice_number,
+      paymentUrl: `${process.env.FRONTEND_URL}/invoices/${invoice.id}/pay`,
+      dueDate: invoice.due_date,
+    });
+  }
+
+  private async handleFailedRenewal(
+    subscription: MemberSubscription,
+    invoice: Invoice | null,
+  ) {
+    // Pause subscription after failed payment
+    subscription.status = SubscriptionStatus.EXPIRED;
+    await this.memberSubscriptionRepository.save(subscription);
+
+    // Send failure notification with action items
+    await this.notificationsService.sendRenewalFailedNotification({
+      email: subscription.member.user.email,
+      memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
+      subscriptionName: subscription.plan.name,
+      amount: subscription.plan.price,
+      currency: subscription.plan.currency,
+      invoiceNumber: invoice?.invoice_number,
+      paymentUrl: invoice
+        ? `${process.env.FRONTEND_URL}/invoices/${invoice.id}/pay`
+        : `${process.env.FRONTEND_URL}/billing`,
+      expiresAt: subscription.expires_at,
+    });
   }
 
   // HELPER METHODS
