@@ -144,7 +144,6 @@ export class NotificationsService {
     interval: string;
     startDate: Date;
     nextBilling: Date;
-    trialEnd?: Date;
   }) {
     await this.emailService.sendEmail({
       to: data.email,

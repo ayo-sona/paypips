@@ -24,13 +24,11 @@ export class ChangeOrgSubscriptionPlanDto {
   notes?: string;
 }
 
-// export class RenewOrgSubscriptionDto {
-//   @ApiProperty({ description: 'Number of billing cycles to renew', default: 1 })
-//   @IsOptional()
-//   cycles: number = 1;
-
-//   @ApiProperty({ required: false })
-//   @IsString()
-//   @IsOptional()
-//   notes?: string;
-// }
+export class CreateOrgSubscriptionDto {
+  @ApiProperty({
+    description: 'Enterprise Plan ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID()
+  planId: string;
+}

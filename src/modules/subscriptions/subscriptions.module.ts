@@ -10,7 +10,7 @@ import { OrganizationSubscription } from '../../database/entities/organization-s
 import { OrganizationPlan } from '../../database/entities/organization-plan.entity';
 import { PaymentsModule } from '../payments/payments.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { OrganizationUser } from 'src/database/entities';
+import { Organization, OrganizationUser } from 'src/database/entities';
 
 @Module({
   imports: [
@@ -22,6 +22,7 @@ import { OrganizationUser } from 'src/database/entities';
       OrganizationSubscription,
       OrganizationPlan,
       OrganizationUser,
+      Organization,
     ]),
     PaymentsModule,
     NotificationsModule,

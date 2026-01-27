@@ -24,6 +24,7 @@ import {
 } from './dto/update-subscription.dto';
 import {
   ChangeOrgSubscriptionPlanDto,
+  CreateOrgSubscriptionDto,
   UpdateOrgSubscriptionStatusDto,
 } from './dto/organization-subscription.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -190,6 +191,26 @@ export class SubscriptionsController {
 
   //////////////////////////////////////
   // Organization
+
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create a new organization subscription' })
+  @ApiResponse({
+    status: 201,
+    description: 'Subscription created successfully',
+    type: OrganizationSubscription,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 409, description: 'Subscription already exists' })
+  @Post('organizations')
+  createOrgSubscription(
+    @CurrentOrganization() organizationId: string,
+    @Body() createOrgSubscriptionDto: CreateOrgSubscriptionDto,
+  ) {
+    return this.subscriptionsService.createOrgSubscription(
+      organizationId,
+      createOrgSubscriptionDto.planId,
+    );
+  }
 
   @Get('organizations')
   @ApiOperation({ summary: 'Get current organization subscription' })

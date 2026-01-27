@@ -5,9 +5,18 @@ import { InvoicesController } from './invoices.controller';
 import { Invoice } from '../../database/entities/invoice.entity';
 import { Member } from '../../database/entities/member.entity';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
+import { Organization, OrganizationSubscription } from 'src/database/entities';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Invoice, Member, MemberSubscription])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Invoice,
+      Member,
+      MemberSubscription,
+      Organization,
+      OrganizationSubscription,
+    ]),
+  ],
   controllers: [InvoicesController],
   providers: [InvoicesService],
   exports: [InvoicesService],

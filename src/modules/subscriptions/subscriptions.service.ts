@@ -2,12 +2,17 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { Member } from '../../database/entities/member.entity';
 import { Invoice } from '../../database/entities/invoice.entity';
-import { InvoiceStatus, SubscriptionStatus } from 'src/common/enums/enums';
+import {
+  InvoiceBilledType,
+  InvoiceStatus,
+  SubscriptionStatus,
+} from 'src/common/enums/enums';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { paginate } from '../../common/dto/pagination.dto';
 import { generateInvoiceNumber } from '../../common/utils/invoice-number.util';
@@ -16,6 +21,7 @@ import { MemberPlan } from '../../database/entities/member-plan.entity';
 import { FindAllMemberSubscriptionsDto } from './dto/find-all-subscriptions.dto';
 import { addMonths, isAfter } from 'date-fns';
 import {
+  Organization,
   OrganizationSubscription,
   OrganizationUser,
 } from 'src/database/entities';
@@ -33,12 +39,17 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SubscriptionsService {
+  private readonly logger = new Logger(SubscriptionsService.name);
+
   constructor(
     @InjectRepository(MemberSubscription)
     private memberSubscriptionRepository: Repository<MemberSubscription>,
 
     @InjectRepository(OrganizationSubscription)
     private organizationSubscriptionRepository: Repository<OrganizationSubscription>,
+
+    @InjectRepository(Organization)
+    private organizationRepository: Repository<Organization>,
 
     @InjectRepository(OrganizationPlan)
     private organizationPlanRepository: Repository<OrganizationPlan>,
@@ -128,15 +139,13 @@ export class SubscriptionsService {
       await this.memberSubscriptionRepository.save(subscription);
 
     console.log('sub', savedSubscription);
-    // Create first invoice (only if no trial or trial has ended)
-    // if (!trialEnd) {
-    //   await this.createInvoiceForSubscription(
-    //     organizationId,
-    //     savedSubscription,
-    //     plan,
-    //     member,
-    //   );
-    // }
+
+    // Generate invoice for subscription
+    await this.createInvoiceForSubscription(
+      organizationId,
+      savedSubscription,
+      member,
+    );
 
     return {
       message: 'Subscription created successfully',
@@ -197,56 +206,6 @@ export class SubscriptionsService {
       data: subscription,
     };
   }
-
-  // async pause(organizationId: string, subscriptionId: string) {
-  //   const subscription = await this.memberSubscriptionRepository.findOne({
-  //     where: {
-  //       id: subscriptionId,
-  //       organization_id: organizationId,
-  //     },
-  //   });
-
-  //   if (!subscription) {
-  //     throw new NotFoundException('Subscription not found');
-  //   }
-
-  //   if (subscription.status !== 'active') {
-  //     throw new BadRequestException('Only active subscriptions can be paused');
-  //   }
-
-  //   subscription.status = 'paused';
-  //   await this.memberSubscriptionRepository.save(subscription);
-
-  //   return {
-  //     message: 'Subscription paused successfully',
-  //     data: subscription,
-  //   };
-  // }
-
-  // async resume(organizationId: string, subscriptionId: string) {
-  //   const subscription = await this.memberSubscriptionRepository.findOne({
-  //     where: {
-  //       id: subscriptionId,
-  //       organization_id: organizationId,
-  //     },
-  //   });
-
-  //   if (!subscription) {
-  //     throw new NotFoundException('Subscription not found');
-  //   }
-
-  //   if (subscription.status !== 'paused') {
-  //     throw new BadRequestException('Only paused subscriptions can be resumed');
-  //   }
-
-  //   subscription.status = 'active';
-  //   await this.memberSubscriptionRepository.save(subscription);
-
-  //   return {
-  //     message: 'Subscription resumed successfully',
-  //     data: subscription,
-  //   };
-  // }
 
   async updateSubscriptionStatus(
     organizationId: string,
@@ -531,6 +490,102 @@ export class SubscriptionsService {
     };
   }
 
+  async createOrgSubscription(organizationId: string, planId: string) {
+    // 1. Verify organization exists
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    // 2. Verify plan exists and is an enterprise plan
+    const plan = await this.organizationPlanRepository.findOne({
+      where: {
+        id: planId,
+        is_active: true,
+      },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Enterprise plan not found or inactive');
+    }
+
+    // 3. Check for existing active subscription
+    const existingSubscription = await this.organizationSubscriptionRepository
+      .createQueryBuilder('sub')
+      .where('sub.organization_id = :orgId', { orgId: organizationId })
+      .andWhere('sub.status = :status', { status: SubscriptionStatus.ACTIVE })
+      .andWhere('sub.expires_at > :now', { now: new Date() })
+      .getOne();
+
+    if (existingSubscription) {
+      throw new BadRequestException(
+        'Organization already has an active subscription',
+      );
+    }
+
+    // 4. Calculate subscription period
+    const now = new Date();
+    const expiresAt = this.calculatePeriodEnd(
+      now,
+      plan.interval,
+      plan.interval_count,
+    );
+
+    // 5. Create subscription record
+    const subscription = this.organizationSubscriptionRepository.create({
+      organization_id: organizationId,
+      plan_id: plan.id,
+      status: SubscriptionStatus.PENDING,
+      started_at: now,
+      expires_at: expiresAt,
+    });
+
+    // 6. Save subscription
+    const savedSubscription =
+      await this.organizationSubscriptionRepository.save(subscription);
+
+    // 7. Create initial invoice
+    const invoice = this.invoiceRepository.create({
+      issuer_org_id: organizationId,
+      organization_subscription_id: subscription.id,
+      invoice_number: `INV-${Date.now()}-${organizationId.substring(0, 8)}`,
+      billed_type: InvoiceBilledType.ORGANIZATION,
+      amount: plan.price,
+      currency: plan.currency,
+      status: InvoiceStatus.PENDING,
+      due_date: subscription.started_at,
+      metadata: {
+        plan_name: plan.name,
+        interval: plan.interval,
+        interval_count: plan.interval_count,
+      },
+    });
+    await this.invoiceRepository.save(invoice);
+
+    // 9. Send confirmation email
+    await this.notificationsService.sendSubscriptionCreatedNotification({
+      email: organization.email,
+      memberName: organization.name,
+      planName: plan.name,
+      amount: plan.price,
+      currency: plan.currency,
+      interval: plan.interval,
+      startDate: now,
+      nextBilling: expiresAt,
+    });
+
+    return {
+      message: 'Enterprise subscription created successfully',
+      data: {
+        subscription: savedSubscription,
+        invoice,
+      },
+    };
+  }
+
   // Get organization subscription
   async getOrganizationSubscription(organizationId: string) {
     const subscription = await this.organizationSubscriptionRepository.findOne({
@@ -557,7 +612,10 @@ export class SubscriptionsService {
     if (updateDto.status === SubscriptionStatus.CANCELED) {
       subscription.status = SubscriptionStatus.CANCELED;
       subscription.canceled_at = new Date();
-    } else if (updateDto.status === SubscriptionStatus.ACTIVE) {
+    } else if (
+      updateDto.status === SubscriptionStatus.ACTIVE ||
+      updateDto.status === SubscriptionStatus.PENDING
+    ) {
       // Only allow reactivation if subscription is not expired
       if (subscription.status === SubscriptionStatus.EXPIRED) {
         throw new BadRequestException(
@@ -660,6 +718,7 @@ export class SubscriptionsService {
       issuer_org_id: organizationId,
       member_subscription_id: subscription.id,
       billed_user_id: member.user.id,
+      billed_type: InvoiceBilledType.USER,
       invoice_number: generateInvoiceNumber(organizationId),
       amount: subscription.plan.price,
       currency: subscription.plan.currency,

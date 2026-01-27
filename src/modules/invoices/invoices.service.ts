@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, In } from 'typeorm';
@@ -13,9 +14,13 @@ import { generateInvoiceNumber } from '../../common/utils/invoice-number.util';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
 import { InvoiceStatus } from 'src/common/enums/enums';
 import { InvoiceBilledType } from 'src/common/enums/enums';
+import { Organization, OrganizationSubscription } from 'src/database/entities';
+import { CreateOrganizationInvoiceDto } from './dto/create-organization-invoice.dto';
 
 @Injectable()
 export class InvoicesService {
+  private readonly logger = new Logger(InvoicesService.name);
+
   constructor(
     @InjectRepository(Invoice)
     private invoiceRepository: Repository<Invoice>,
@@ -25,6 +30,12 @@ export class InvoicesService {
 
     @InjectRepository(MemberSubscription)
     private memberSubscriptionRepository: Repository<MemberSubscription>,
+
+    @InjectRepository(Organization)
+    private organizationRepository: Repository<Organization>,
+
+    @InjectRepository(OrganizationSubscription)
+    private organizationSubscriptionRepository: Repository<OrganizationSubscription>,
   ) {}
 
   async createMemberInvoice(
@@ -266,6 +277,175 @@ export class InvoicesService {
           totalInvoices - paidInvoices - pendingInvoices - overdueInvoices,
         total_revenue: parseFloat(totalRevenue[0].total),
       },
+    };
+  }
+
+  /**
+   * Get a single organization invoice by ID
+   */
+  async getOrganizationInvoice(
+    organizationId: string,
+    invoiceId: string,
+  ): Promise<Invoice> {
+    const invoice = await this.invoiceRepository.findOne({
+      where: {
+        id: invoiceId,
+        issuer_org_id: organizationId,
+        billed_type: InvoiceBilledType.ORGANIZATION,
+      },
+      relations: [
+        'organization_subscription',
+        'organization_subscription.plan',
+      ],
+    });
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+    return invoice;
+  }
+
+  /**
+   * Get a single organization invoices
+   */
+  async getOrganizationInvoices(organizationId: string): Promise<Invoice> {
+    const invoice = await this.invoiceRepository.findOne({
+      where: {
+        issuer_org_id: organizationId,
+        billed_type: InvoiceBilledType.ORGANIZATION,
+      },
+      relations: [
+        'organization_subscription',
+        'organization_subscription.plan',
+      ],
+    });
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+    return invoice;
+  }
+
+  /**
+   * Create a new invoice for an organization
+   */
+  async createOrganizationInvoice(
+    organizationId: string,
+    createInvoiceDto: CreateOrganizationInvoiceDto,
+  ): Promise<Invoice> {
+    // Verify organization exists
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+    });
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+    // If subscription ID is provided, verify it exists and belongs to the organization
+    let subscription: OrganizationSubscription | null = null;
+    if (createInvoiceDto.subscriptionId) {
+      subscription = await this.organizationSubscriptionRepository.findOne({
+        where: {
+          id: createInvoiceDto.subscriptionId,
+          organization_id: organizationId,
+        },
+      });
+      if (!subscription) {
+        throw new BadRequestException('Invalid subscription ID');
+      }
+    }
+    const invoice = this.invoiceRepository.create({
+      issuer_org_id: organizationId,
+      organization_subscription_id: createInvoiceDto.subscriptionId,
+      billed_type: InvoiceBilledType.ORGANIZATION,
+      invoice_number: `INV-ORG-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+      amount: createInvoiceDto.amount,
+      currency: createInvoiceDto.currency || 'NGN',
+      status: createInvoiceDto.status || InvoiceStatus.PENDING,
+      due_date: createInvoiceDto.dueDate || new Date(),
+      description: createInvoiceDto.description,
+      metadata: {
+        ...createInvoiceDto.metadata,
+      },
+    });
+    return this.invoiceRepository.save(invoice);
+  }
+
+  /**
+   * Get all overdue organization invoices
+   */
+  async getOverdueOrgInvoices(
+    organizationId: string,
+  ): Promise<{ data: Invoice[]; count: number }> {
+    const now = new Date();
+    const [invoices, count] = await this.invoiceRepository.findAndCount({
+      where: {
+        issuer_org_id: organizationId,
+        billed_type: InvoiceBilledType.ORGANIZATION,
+        status: In([InvoiceStatus.PENDING, InvoiceStatus.FAILED]),
+        due_date: LessThan(now),
+      },
+      relations: ['organization_subscription'],
+      order: { due_date: 'ASC' },
+    });
+    return {
+      data: invoices,
+      count,
+    };
+  }
+
+  /**
+   * Get organization invoice statistics
+   */
+  async getOrganizationsInvoiceStats(organizationId: string) {
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    // Get total paid amount
+    const totalPaid = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .select('SUM(invoice.amount)', 'total')
+      .where('invoice.issuer_org_id = :orgId', { orgId: organizationId })
+      .andWhere('invoice.status = :status', { status: InvoiceStatus.PAID })
+      .getRawOne();
+
+    // Get pending amount
+    const pendingInvoices = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .select('SUM(invoice.amount)', 'total')
+      .where('invoice.issuer_org_id = :orgId', { orgId: organizationId })
+      .andWhere('invoice.status = :status', { status: InvoiceStatus.PENDING })
+      .andWhere('invoice.due_date >= :now', { now })
+      .getRawOne();
+
+    // Get failed amount
+    // const failedInvoices = await this.invoiceRepository
+    //   .createQueryBuilder('invoice')
+    //   .select('SUM(invoice.amount)', 'total')
+    //   .where('invoice.issuer_org_id = :orgId', { orgId: organizationId })
+    //   .andWhere('invoice.status = :status', { status: InvoiceStatus.FAILED })
+    //   .andWhere('invoice.due_date < :now', { now })
+    //   .getRawOne();
+
+    // Get monthly revenue for the last 30 days
+    const monthlyRevenue = await this.invoiceRepository
+      .createQueryBuilder('invoice')
+      .select([
+        "TO_CHAR(invoice.paid_at, 'YYYY-MM-DD') as day",
+        'SUM(invoice.amount) as amount',
+      ])
+      .where('invoice.issuer_org_id = :orgId', { orgId: organizationId })
+      .andWhere('invoice.status = :status', { status: InvoiceStatus.PAID })
+      .andWhere('invoice.paid_at >= :date', { date: thirtyDaysAgo })
+      .groupBy("TO_CHAR(invoice.paid_at, 'YYYY-MM-DD')")
+      .orderBy('day', 'ASC')
+      .getRawMany();
+
+    return {
+      totalPaid: parseFloat(totalPaid?.total || 0),
+      pendingAmount: parseFloat(pendingInvoices?.total || 0),
+      monthlyRevenue: monthlyRevenue.map((item) => ({
+        day: item.day,
+        amount: parseFloat(item.amount),
+      })),
     };
   }
 }

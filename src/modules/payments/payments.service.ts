@@ -100,7 +100,6 @@ export class PaymentsService {
       reference,
       {
         payment_id: savedPayment.id,
-        invoice_id: invoice.id,
         payer_name: `${invoice.billed_user.first_name} ${invoice.billed_user.last_name}`,
         ...initializePaymentDto.metadata,
       },

@@ -2,7 +2,7 @@ export enum SubscriptionStatus {
   ACTIVE = 'active',
   CANCELED = 'canceled',
   EXPIRED = 'expired',
-  //   PAUSED = 'paused',
+  PENDING = 'pending',
 }
 
 export enum PaymentStatus {
