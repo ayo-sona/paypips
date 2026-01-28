@@ -16,7 +16,7 @@ export function AnalyticsCards() {
     startDate: new Date("2026-01-01").toISOString(),
     endDate: new Date("2026-01-31").toISOString(),
   });
-  console.log("analytics", analytics);
+  // console.log("analytics", analytics);
   const { data: teamMembers, isLoading: teamLoading } = useTeamMembers();
 
   const isLoading = analyticsLoading || teamLoading;

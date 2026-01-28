@@ -11,6 +11,7 @@
   "dependencies": {
     "@heroui/react": "^2.8.7",
     "@heroui/theme": "^2.4.25",
+    "@paystack/inline-js": "^2.22.7",
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "^5.90.16",
     "@tanstack/react-query-devtools": "^5.91.2",
@@ -25,6 +26,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.6.0",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7"
   },
@@ -32,6 +34,7 @@
     "@tailwindcss/cli": "^4.1.18",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/paystack__inline-js": "^1.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

@@ -2,36 +2,44 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../../types/user';
-import { MOCK_USER } from '../../lib/mockData';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
+import apiClient from '../../lib/apiClient';
+import { getCookie } from 'cookies-next';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useLocalStorage<User | null>('user', null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch user profile on mount
   useEffect(() => {
-    // Simulate checking auth status
-    // In production, verify token with backend
     const checkAuth = async () => {
       setIsLoading(true);
       
-      // If no user in localStorage, use mock data for demo
-      if (!user) {
-        setUser(MOCK_USER);
+      try {
+        const token = getCookie('access_token');
+        
+        if (token) {
+          // Fetch user profile from API
+          const response = await apiClient.get('/auth/profile');
+          setUser(response.data.data);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
 
     checkAuth();
@@ -40,25 +48,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
-    // TODO: Replace with actual API call
-    // const response = await apiClient.post('/auth/login', { email, password });
-    
-    // Mock login
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setUser(MOCK_USER);
-    localStorage.setItem('auth_token', 'mock_token_123');
-    
-    setIsLoading(false);
+    try {
+      // Call your actual login API
+      const response = await apiClient.post('/auth/login', { email, password });
+      
+      // The apiClient already handles setting the access_token cookie
+      // Now fetch the user profile
+      const profileResponse = await apiClient.get('/auth/profile');
+      setUser(profileResponse.data.data);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('auth_token');
+  const logout = async () => {
+    try {
+      // Call logout endpoint (clears refresh token on server)
+      await apiClient.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      // The apiClient logout function handles cookie clearing and redirect
+    }
   };
 
   const updateUser = (updates: Partial<User>) => {
     if (user) {
       setUser({ ...user, ...updates });
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const response = await apiClient.get('/auth/profile');
+      setUser(response.data.data);
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
     }
   };
 
@@ -71,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         updateUser,
+        refreshUser,
       }}
     >
       {children}

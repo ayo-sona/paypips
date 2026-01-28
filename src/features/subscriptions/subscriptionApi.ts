@@ -1,45 +1,75 @@
-import { apiClient } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { Subscription } from '../../types/subscription';
 import { PlanId, BillingCycle } from '../../types/subscription';
-import { MOCK_SUBSCRIPTION } from '../../lib/mockData';
 
 export const subscriptionAPI = {
-  async getCurrent(): Promise<Subscription> {
-    // TODO: Replace with actual API call
-    // const response = await apiClient.get<Subscription>('/subscriptions/current');
-    // return response.data!;
-    
-    // Mock for now
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(MOCK_SUBSCRIPTION), 500);
-    });
+  async getCurrent(): Promise<Subscription | null> {
+    try {
+      // TODO: Implement when backend has organization subscription endpoint
+      // const response = await apiClient.get('/organizations/me/subscription');
+      // return response.data.data;
+      
+      console.log('Fetching current organization subscription');
+      
+      // ✅ FIXED: Added userId and usage properties
+      return {
+        id: 'temp-sub-id',
+        userId: 'temp-user-id',
+        planId: 'basic' as PlanId,
+        status: 'active',
+        billingCycle: 'monthly' as BillingCycle,
+        currentPeriodStart: new Date().toISOString(),
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        cancelAtPeriodEnd: false,
+        memberCount: 0,
+        usage: {
+          members: 0,
+          storage: 0,
+          apiCalls: 0,
+        },
+      };
+    } catch (error) {
+      console.error('Failed to fetch current subscription:', error);
+      return null;
+    }
   },
 
   async changePlan(planId: PlanId, billingCycle: BillingCycle): Promise<void> {
-    // TODO: Replace with actual API call
-    // await apiClient.post('/subscriptions/change-plan', { planId, billingCycle });
-    
-    // Mock for now
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(), 1000);
-    });
+    try {
+      // TODO: Implement when backend has plan change endpoint
+      // await apiClient.post('/organizations/me/subscription/change-plan', { 
+      //   planId, 
+      //   billingCycle 
+      // });
+      
+      console.log('Change plan:', { planId, billingCycle });
+    } catch (error) {
+      console.error('Failed to change plan:', error);
+      throw error;
+    }
   },
 
   async cancel(): Promise<void> {
-    // TODO: Replace with actual API call
-    // await apiClient.post('/subscriptions/cancel');
-    
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(), 1000);
-    });
+    try {
+      // TODO: Implement when backend has subscription cancel endpoint
+      // await apiClient.post('/organizations/me/subscription/cancel');
+      
+      console.log('Cancel subscription');
+    } catch (error) {
+      console.error('Failed to cancel subscription:', error);
+      throw error;
+    }
   },
 
   async reactivate(): Promise<void> {
-    // TODO: Replace with actual API call
-    // await apiClient.post('/subscriptions/reactivate');
-    
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(), 1000);
-    });
+    try {
+      // TODO: Implement when backend has subscription reactivate endpoint
+      // await apiClient.post('/organizations/me/subscription/reactivate');
+      
+      console.log('Reactivate subscription');
+    } catch (error) {
+      console.error('Failed to reactivate subscription:', error);
+      throw error;
+    }
   },
 };

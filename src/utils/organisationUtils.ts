@@ -3,7 +3,10 @@
 
 export const getCurrentOrganizationId = (): string => {
   // Get from localStorage where select page saves it
-  const orgId = localStorage.getItem("selectedOrganizationId");
+  const orgId =
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem("selectedOrganizationId")
+      : null;
 
   if (!orgId) {
     throw new Error(
@@ -16,5 +19,7 @@ export const getCurrentOrganizationId = (): string => {
 
 // Helper to set organization ID (called from select page)
 export const setCurrentOrganizationId = (organizationId: string): void => {
-  localStorage.setItem("selectedOrganizationId", organizationId);
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem("selectedOrganizationId", organizationId);
+  }
 };

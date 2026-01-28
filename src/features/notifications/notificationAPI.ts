@@ -1,43 +1,48 @@
-import { apiClient } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { Notification } from '../../types/notification';
-import { MOCK_NOTIFICATIONS } from '../../lib/mockData';
 
 export const notificationAPI = {
   async getAll(): Promise<Notification[]> {
-    // TODO: Replace with actual API call
-    // const response = await apiClient.get<Notification[]>('/notifications');
-    // return response.data!;
-    
-    // Mock for now
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(MOCK_NOTIFICATIONS), 500);
-    });
+    try {
+      // TODO: Implement when backend has notification endpoints
+      // const response = await apiClient.get('/notifications');
+      // return response.data.data;
+      
+      // For now, return empty array (no notifications)
+      return [];
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      return [];
+    }
   },
 
   async markAsRead(notificationId: string): Promise<void> {
-    // TODO: Replace with actual API call
-    // await apiClient.put(`/notifications/${notificationId}/read`);
-    
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(), 200);
-    });
+    try {
+      // TODO: Implement when backend has notification endpoints
+      // await apiClient.put(`/notifications/${notificationId}/read`);
+      console.log('Mark as read:', notificationId);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
   },
 
   async markAllAsRead(): Promise<void> {
-    // TODO: Replace with actual API call
-    // await apiClient.put('/notifications/read-all');
-    
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(), 300);
-    });
+    try {
+      // TODO: Implement when backend has notification endpoints
+      // await apiClient.put('/notifications/read-all');
+      console.log('Mark all as read');
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+    }
   },
 
   async delete(notificationId: string): Promise<void> {
-    // TODO: Replace with actual API call
-    // await apiClient.delete(`/notifications/${notificationId}`);
-    
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(), 200);
-    });
+    try {
+      // TODO: Implement when backend has notification endpoints
+      // await apiClient.delete(`/notifications/${notificationId}`);
+      console.log('Delete notification:', notificationId);
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+    }
   },
 };

@@ -4,10 +4,9 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/Table';
 import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { Payment } from '../../types/payment';
-import { formatCurrency } from '../../lib/formatters';
-import { formatDate } from '../../lib/utils.ts';
+import { formatCurrency,formatDate  } from '../../lib/formatters';
 
 interface PaymentHistoryTableProps {
   payments: Payment[];

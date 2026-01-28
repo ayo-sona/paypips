@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { SubscriptionPlan } from '../../types/enterprise';
 
@@ -21,8 +21,8 @@ interface CreatePlanModalProps {
 }
 
 export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: CreatePlanModalProps) {
-  // Initialize form data based on editing mode
-  const getInitialFormData = () => {
+  // ⭐ FIXED: Use lazy initialization to avoid calling Date.now() during render
+  const [formData, setFormData] = useState(() => {
     if (editingPlan) {
       return {
         name: editingPlan.name,
@@ -39,10 +39,10 @@ export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: Create
       duration: 'monthly',
       visibility: 'public',
     };
-  };
+  });
 
-  const getInitialFeatures = () => {
-    if (editingPlan) {
+  const [features, setFeatures] = useState(() => {
+    if (editingPlan && editingPlan.features.length > 0) {
       return editingPlan.features.map(f => ({
         id: f.id,
         name: f.name,
@@ -50,19 +50,21 @@ export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: Create
       }));
     }
     return [{ id: '1', name: '', included: true }];
+  });
+
+  // Reset form when modal closes
+  const handleClose = () => {
+    // Reset to empty/new plan state
+    setFormData({
+      name: '',
+      description: '',
+      price: '',
+      duration: 'monthly',
+      visibility: 'public',
+    });
+    setFeatures([{ id: '1', name: '', included: true }]);
+    onClose();
   };
-
-  const [formData, setFormData] = useState(getInitialFormData);
-  const [features, setFeatures] = useState(getInitialFeatures);
-
-  // Reset form when modal opens/closes or editing plan changes
-  useEffect(() => {
-    if (isOpen) {
-      setFormData(getInitialFormData());
-      setFeatures(getInitialFeatures());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, editingPlan?.id]); // Only depend on isOpen and plan ID to avoid cascading
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,21 +75,20 @@ export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: Create
       features: features.filter(f => f.name.trim() !== ''),
     };
 
+    console.log('💾 Saving plan:', planData);
     onSave(planData);
   };
 
   const addFeature = () => {
     setFeatures([...features, { 
-      id: Date.now().toString(), 
+      id: Date.now().toString(), // This is fine inside event handler
       name: '', 
       included: true 
     }]);
   };
 
   const removeFeature = (id: string) => {
-    if (features.length > 1) {
-      setFeatures(features.filter(f => f.id !== id));
-    }
+    setFeatures(features.filter(f => f.id !== id));
   };
 
   const updateFeature = (id: string, field: 'name' | 'included', value: string | boolean) => {
@@ -104,7 +105,7 @@ export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: Create
         {/* Backdrop */}
         <div 
           className="fixed inset-0 bg-gray-300/10 bg-opacity-50 transition-opacity backdrop-blur-sm"
-          onClick={onClose}
+          onClick={handleClose}
         />
 
         {/* Modal */}
@@ -112,10 +113,10 @@ export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: Create
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              {editingPlan ? 'Edit Plan' : 'Create New Plan'}
+              {editingPlan ? `Edit Plan: ${editingPlan.name}` : 'Create New Plan'}
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
             >
               <X className="h-5 w-5" />
@@ -217,6 +218,12 @@ export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: Create
                 </button>
               </div>
 
+              {features.length === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  No features yet. Click &quot;Add Feature&quot; to add one.
+                </p>
+              )}
+
               <div className="space-y-2">
                 {features.map((feature) => (
                   <div key={feature.id} className="flex items-center gap-2">
@@ -236,15 +243,13 @@ export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: Create
                       />
                       Included
                     </label>
-                    {features.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeFeature(feature.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeFeature(feature.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -254,7 +259,7 @@ export function CreatePlanModal({ isOpen, onClose, onSave, editingPlan }: Create
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 Cancel

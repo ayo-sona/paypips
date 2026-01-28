@@ -1,27 +1,48 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { Plus, DollarSign, TrendingUp, CreditCard, Users, AlertCircle } from 'lucide-react';
-import { PaymentsTable } from '../../../components/enterprise/PaymentsTable';
-import { PaymentFilters } from '../../../components/enterprise/PaymentFilters';
-import { ManualPaymentModal, ManualPaymentData } from '../../../components/enterprise/ManualPaymentModal';
-import { usePayments, usePaymentStats, useInitializePayment} from '../../../hooks/usePayments';
-import { mapApiPaymentsToUiPayments } from '../../../utils/paymentMapper';
+import { useMemo, useState } from "react";
+import {
+  Plus,
+  DollarSign,
+  TrendingUp,
+  CreditCard,
+  Users,
+  AlertCircle,
+} from "lucide-react";
+import { PaymentsTable } from "../../../components/enterprise/PaymentsTable";
+import { PaymentFilters } from "../../../components/enterprise/PaymentFilters";
+import {
+  ManualPaymentModal,
+  ManualPaymentData,
+} from "../../../components/enterprise/ManualPaymentModal";
+import {
+  usePayments,
+  usePaymentStats,
+  useInitializePayment,
+} from "../../../hooks/usePayments";
+import { mapApiPaymentsToUiPayments } from "../../../utils/paymentMapper";
 
 export default function PaymentsPage() {
   const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
-  
+
   // Filter state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [selectedSource, setSelectedSource] = useState<string>('all');
-  const [selectedMethod, setSelectedMethod] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('success');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [selectedSource, setSelectedSource] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("success");
 
   // Hooks handle ALL business logic
-  const { data: paymentsResponse, isLoading, error, refetch } = usePayments(1, 1000, selectedStatus);
+  const {
+    data: paymentsResponse,
+    isLoading,
+    error,
+    refetch,
+  } = usePayments(1, 10, selectedStatus);
+  // console.log("paymentsResponse", paymentsResponse);
+  // console.log("sample payment", paymentsResponse?.data[0]);
   const { data: stats } = usePaymentStats();
+  // console.log("stats", stats);
   const createPayment = useInitializePayment();
 
   // Transform API payments to match PaymentsTable expected format
@@ -31,88 +52,110 @@ export default function PaymentsPage() {
   }, [paymentsResponse?.data]);
 
   // UI-only: Apply filters
-  const filteredPayments = payments.filter(payment => {
+  const filteredPayments = payments.filter((payment) => {
     // Search filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      const matchesSearch = 
-        payment.memberName?.toLowerCase().includes(search) ||
-        payment.memberEmail?.toLowerCase().includes(search) ||
-        new Date(payment.createdAt).toLocaleDateString().includes(search);
+      const matchesSearch =
+        payment.payer_user.first_name?.toLowerCase().includes(search) ||
+        payment.payer_user.last_name?.toLowerCase().includes(search) ||
+        payment.payer_user.email?.toLowerCase().includes(search) ||
+        new Date(payment.created_at).toLocaleDateString().includes(search);
       if (!matchesSearch) return false;
     }
 
     // Date filters
-    if (dateFrom && new Date(payment.createdAt) < new Date(dateFrom)) return false;
-    if (dateTo && new Date(payment.createdAt) > new Date(dateTo + 'T23:59:59')) return false;
+    if (dateFrom && new Date(payment.created_at) < new Date(dateFrom))
+      return false;
+    if (dateTo && new Date(payment.created_at) > new Date(dateTo + "T23:59:59"))
+      return false;
 
     // Gateway filter
-    if (selectedSource !== 'all') {
-      if (selectedSource === 'manual' && payment.gateway) return false;
-      if (selectedSource !== 'manual' && payment.gateway !== selectedSource) return false;
-    }
-
-    // Method filter
-    if (selectedMethod !== 'all' && payment.method !== selectedMethod) return false;
+    if (selectedSource === "all") return true;
+    if (selectedSource === "paystack" && payment.provider !== "paystack")
+      return false;
+    if (selectedSource === "kora" && payment.provider !== "kora") return false;
+    if (selectedSource === "manual" && payment.provider !== "manual")
+      return false;
 
     return true;
   });
+  // console.log("filteredPayments", filteredPayments);
 
   // UI-only: Calculate stats from fetched data or use backend stats
-  const displayStats = stats ? [
-    {
-      title: 'Total Revenue',
-      value: `₦${(stats.totalRevenue / 1000).toFixed(1)}K`,
-      icon: DollarSign,
-      color: 'bg-green-500',
-      subtext: 'All time'
-    },
-    {
-      title: 'This Month',
-      value: `₦${(stats.monthlyRevenue / 1000).toFixed(1)}K`,
-      icon: TrendingUp,
-      color: 'bg-blue-500',
-      subtext: `${stats.monthlyPayments} payments`
-    },
-    {
-      title: 'Platform Payments',
-      value: stats.platformPayments,
-      icon: CreditCard,
-      color: 'bg-purple-500',
-      subtext: 'Online payments'
-    },
-    {
-      title: 'Manual Logs',
-      value: stats.manualPayments,
-      icon: Users,
-      color: 'bg-orange-500',
-      subtext: 'Logged by admin'
-    },
-  ] : [];
+  const displayStats = stats
+    ? [
+        {
+          title: "Total Revenue",
+          value: `₦${(stats.total_revenue / 1000).toFixed(1)}K`,
+          icon: DollarSign,
+          color: "bg-green-500",
+          subtext: "All time",
+        },
+        {
+          title: "Total Expenses",
+          value: `₦${(stats.total_expenses / 1000).toFixed(1)}K`,
+          icon: TrendingUp,
+          color: "bg-blue-500",
+          subtext: "All time",
+        },
+        {
+          title: "Total Profit",
+          value: `₦${((stats.total_revenue - stats.total_expenses) / 1000).toFixed(1)}K`,
+          icon: CreditCard,
+          color: "bg-purple-500",
+          subtext: "All time",
+        },
+        {
+          title: "Successful Payments",
+          value: stats.successful_payments,
+          icon: Users,
+          color: "bg-green-500",
+          subtext: "All time",
+        },
+        {
+          title: "Failed Payments",
+          value: stats.failed_payments,
+          icon: Users,
+          color: "bg-red-500",
+          subtext: "All time",
+        },
+        {
+          title: "Pending Payments",
+          value: stats.pending_payments,
+          icon: Users,
+          color: "bg-yellow-500",
+          subtext: "All time",
+        },
+      ]
+    : [];
 
   // Event handlers - just call hooks
-  const handleLogManualPayment = async (data: ManualPaymentData) => {
-    try {
-      await createPayment.mutateAsync({
-        memberId: data.memberId,
-        amount: data.amount,
-        currency: data.currency,
-        method: data.method,
-        description: data.description,
-        paidAt: data.paidAt,
-      });
-      setShowManualPaymentModal(false);
-      console.log('Payment logged successfully');
-    } catch (error) {
-      console.error('Failed to log payment:', error);
-      alert('Failed to log payment. Please try again.');
-    }
-  };
+  // const handleLogManualPayment = async (data: ManualPaymentData) => {
+  //   try {
+  //     await createPayment.mutateAsync({
+  //       memberId: data.memberId,
+  //       amount: data.amount,
+  //       currency: data.currency,
+  //       provider: data.provider,
+  //       provider_reference: data.provider_reference,
+  //       description: data.description,
+  //       paidAt: data.paidAt,
+  //     });
+  //     setShowManualPaymentModal(false);
+  //     console.log("Payment logged successfully");
+  //   } catch (error) {
+  //     console.error("Failed to log payment:", error);
+  //     alert("Failed to log payment. Please try again.");
+  //   }
+  // };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500 dark:text-gray-400">Loading payments...</div>
+        <div className="text-gray-500 dark:text-gray-400">
+          Loading payments...
+        </div>
       </div>
     );
   }
@@ -128,7 +171,8 @@ export default function PaymentsPage() {
                 Failed to Load Payments
               </h3>
               <p className="mt-2 text-sm text-red-700 dark:text-red-300">
-                Unable to fetch payment data from the server. This could be because:
+                Unable to fetch payment data from the server. This could be
+                because:
               </p>
               <ul className="mt-2 text-sm text-red-700 dark:text-red-300 list-disc list-inside space-y-1">
                 <li>The payments API endpoint is not yet implemented</li>
@@ -182,7 +226,10 @@ export default function PaymentsPage() {
                   <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
                     {stat.title}
                   </p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2" suppressHydrationWarning>
+                  <p
+                    className="text-2xl font-bold text-gray-900 dark:text-white mt-2"
+                    suppressHydrationWarning
+                  >
                     {stat.value}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
@@ -199,7 +246,7 @@ export default function PaymentsPage() {
       )}
 
       {/* Filters */}
-      <PaymentFilters 
+      <PaymentFilters
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         dateFrom={dateFrom}
@@ -208,8 +255,6 @@ export default function PaymentsPage() {
         setDateTo={setDateTo}
         selectedSource={selectedSource}
         setSelectedSource={setSelectedSource}
-        selectedMethod={selectedMethod}
-        setSelectedMethod={setSelectedMethod}
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
         filteredCount={filteredPayments.length}
@@ -220,9 +265,9 @@ export default function PaymentsPage() {
         {filteredPayments.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-500 dark:text-gray-400">
-              {payments.length === 0 
-                ? 'No payments yet. Log your first payment to get started.'
-                : 'No payments match your current filters.'}
+              {payments.length === 0
+                ? "No payments yet. Log your first payment to get started."
+                : "No payments match your current filters."}
             </p>
           </div>
         ) : (
@@ -231,11 +276,11 @@ export default function PaymentsPage() {
       </div>
 
       {/* Manual Payment Modal */}
-      <ManualPaymentModal
+      {/* <ManualPaymentModal
         isOpen={showManualPaymentModal}
         onClose={() => setShowManualPaymentModal(false)}
         onSave={handleLogManualPayment}
-      />
+      /> */}
     </div>
   );
 }

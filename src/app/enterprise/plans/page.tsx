@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { PlansGrid } from '../../../components/enterprise/PlansGrid';
 import { CreatePlanModal } from '../../../components/enterprise/CreatePlanModal';
+import { SearchBar } from '../../../components/enterprise/PlanSearchBar';
+import { PlanFilters } from '../../../components/enterprise/PlanFilters';
 import { usePlans, useCreatePlan, useUpdatePlan, useDeletePlan, useTogglePlan } from '../../../hooks/usePlans';
 import { SubscriptionPlan } from '../../../types/enterprise';
 import { mapPlansToSubscriptionPlans } from '../../../utils/planMapper';
@@ -20,43 +22,83 @@ interface PlanFormData {
 export default function PlansPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
+  
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState({
+    status: "all" as "all" | "active" | "inactive",
+    duration: "all" as "all" | "weekly" | "monthly" | "quarterly" | "yearly",
+    priceMin: "",
+    priceMax: "",
+  });
 
-  // Hooks handle ALL business logic - no localStorage, no manual state
-  const { data: plansResponse, isLoading } = usePlans();
+  const { data: plansResponse, isLoading, error } = usePlans();
   const createPlan = useCreatePlan();
   const updatePlan = useUpdatePlan();
   const deletePlan = useDeletePlan();
   const togglePlan = useTogglePlan();
 
-  // Map backend Plan[] to frontend SubscriptionPlan[]
-  const plans = plansResponse?.data ? mapPlansToSubscriptionPlans(plansResponse.data) : [];
+  const allPlans = plansResponse?.data ? mapPlansToSubscriptionPlans(plansResponse.data) : [];
 
-  // UI-only: Calculate stats from fetched data
+  const filteredPlans = useMemo(() => {
+    return allPlans.filter((plan) => {
+      if (search && !plan.name.toLowerCase().includes(search.toLowerCase())) {
+        return false;
+      }
+
+      if (filters.status !== "all") {
+        if (filters.status === "active" && !plan.isActive) return false;
+        if (filters.status === "inactive" && plan.isActive) return false;
+      }
+
+      if (filters.duration !== "all" && plan.duration !== filters.duration) {
+        return false;
+      }
+
+      if (filters.priceMin !== "") {
+        const minPrice = parseFloat(filters.priceMin);
+        if (plan.price < minPrice) return false;
+      }
+
+      if (filters.priceMax !== "") {
+        const maxPrice = parseFloat(filters.priceMax);
+        if (plan.price > maxPrice) return false;
+      }
+
+      return true;
+    });
+  }, [allPlans, search, filters]);
+
   const stats = {
-    total: plans.length,
-    active: plans.filter(p => p.isActive).length,
-    totalMembers: plans.reduce((sum, p) => sum + (p.memberCount || 0), 0),
-    avgPrice: plans.length > 0 
-      ? plans.reduce((sum, p) => sum + p.price, 0) / plans.length 
+    total: allPlans.length,
+    active: allPlans.filter(p => p.isActive).length,
+    totalMembers: allPlans.reduce((sum, p) => sum + (p.memberCount || 0), 0),
+    avgPrice: allPlans.length > 0 
+      ? allPlans.reduce((sum, p) => sum + p.price, 0) / allPlans.length 
       : 0,
   };
 
-  // UI-only: Handle modal opening
   const handleCreatePlan = () => {
+    console.log('➕ Create Plan clicked');
     setEditingPlan(null);
     setShowCreateModal(true);
   };
 
   const handleEditPlan = (plan: SubscriptionPlan) => {
+    console.log('✏️ handleEditPlan called in PlansPage');
+    console.log('✏️ Plan to edit:', plan);
+    console.log('✏️ Plan ID:', plan.id);
+    console.log('✏️ Plan name:', plan.name);
+    
     setEditingPlan(plan);
+    console.log('✏️ editingPlan state set to:', plan);
+    
     setShowCreateModal(true);
+    console.log('✏️ showCreateModal set to true');
   };
 
-  // Event handlers - just call hooks (no business logic)
   const handleTogglePlanStatus = async (planId: string, currentStatus: boolean) => {
     try {
       await togglePlan.mutateAsync(planId);
-      console.log(`${currentStatus ? 'Deactivated' : 'Activated'} plan:`, planId);
     } catch (error) {
       console.error('Failed to toggle plan status:', error);
       alert('Failed to update plan status');
@@ -64,11 +106,10 @@ export default function PlansPage() {
   };
 
   const handleDeletePlan = async (planId: string) => {
-    const plan = plans.find(p => p.id === planId);
+    const plan = allPlans.find(p => p.id === planId);
     if (confirm(`Are you sure you want to permanently delete "${plan?.name}"? This action cannot be undone.`)) {
       try {
         await deletePlan.mutateAsync(planId);
-        console.log('Deleted plan:', planId);
       } catch (error) {
         console.error('Failed to delete plan:', error);
         alert('Failed to delete plan');
@@ -79,7 +120,7 @@ export default function PlansPage() {
   const handleSavePlan = async (planData: PlanFormData) => {
     try {
       if (editingPlan) {
-        // Update existing plan
+        console.log('💾 Updating existing plan:', editingPlan.id);
         await updatePlan.mutateAsync({
           id: editingPlan.id,
           data: {
@@ -93,9 +134,8 @@ export default function PlansPage() {
             features: planData.features.map(f => f.name),
           },
         });
-        console.log('Updated plan:', editingPlan.id, planData);
       } else {
-        // Create new plan
+        console.log('💾 Creating new plan');
         await createPlan.mutateAsync({
           name: planData.name,
           description: planData.description,
@@ -106,7 +146,6 @@ export default function PlansPage() {
           trialPeriodDays: 0,
           features: planData.features.map(f => f.name),
         });
-        console.log('Created plan:', planData);
       }
       setShowCreateModal(false);
       setEditingPlan(null);
@@ -119,10 +158,35 @@ export default function PlansPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500 dark:text-gray-400">Loading plans...</div>
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400">Loading plans...</p>
+        </div>
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="text-red-500 dark:text-red-400 mb-4">
+          Failed to load plans
+        </div>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          {error instanceof Error ? error.message : 'Unknown error'}
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  console.log('🔄 PlansPage render - editingPlan:', editingPlan);
+  console.log('🔄 PlansPage render - showCreateModal:', showCreateModal);
 
   return (
     <div className="space-y-6">
@@ -136,16 +200,13 @@ export default function PlansPage() {
             Create and manage your membership plans
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Create Plan Button */}
-          <button
-            onClick={handleCreatePlan}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Create Plan
-          </button>
-        </div>
+        <button
+          onClick={handleCreatePlan}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Create Plan
+        </button>
       </div>
 
       {/* Stats */}
@@ -176,18 +237,43 @@ export default function PlansPage() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <SearchBar 
+        value={search}
+        onChange={setSearch}
+        placeholder="Search plans by name..."
+      />
+
+      {/* Filters */}
+      <PlanFilters 
+        filters={filters}
+        onFiltersChange={setFilters}
+        filteredCount={filteredPlans.length}
+        totalCount={allPlans.length}
+      />
+
       {/* Plans Grid */}
       <PlansGrid 
-        plans={plans}
+        plans={filteredPlans}
         onEditPlan={handleEditPlan}
         onTogglePlanStatus={handleTogglePlanStatus}
         onDeletePlan={handleDeletePlan}
       />
 
+      {/* Empty State */}
+      {filteredPlans.length === 0 && allPlans.length > 0 && (
+        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+          <p className="text-gray-600 dark:text-gray-400">
+            No plans match your filters. Try adjusting your search or filters.
+          </p>
+        </div>
+      )}
+
       {/* Create/Edit Plan Modal */}
       <CreatePlanModal
         isOpen={showCreateModal}
         onClose={() => {
+          console.log('❌ Modal closed');
           setShowCreateModal(false);
           setEditingPlan(null);
         }}

@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { useNotifications } from '../../features/notifications/notificationContext';
-import { formatRelativeTime } from '../../lib/utils.ts';
+import { formatRelativeTime } from '../../lib/formatters';
 
 export function NotificationCenter() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();

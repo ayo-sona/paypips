@@ -5,6 +5,7 @@ import { MembersTable } from "../../../components/enterprise/MembersTable";
 import { MemberFilters } from "../../../components/enterprise/MemberFilters";
 import { UserPlus } from "lucide-react";
 import { useMembers } from "../../../hooks/useMembers";
+import { Member } from "../../../types/enterprise";
 
 export default function MembersPage() {
   const [filters, setFilters] = useState({
@@ -15,63 +16,51 @@ export default function MembersPage() {
     status: "all" as "all" | "active" | "inactive" | "expired",
   });
 
-  // Hook handles ALL business logic
+  // Fetch data
   const { data: membersData, isLoading, error } = useMembers(filters.search);
 
   // Extract members array from response
   const members = useMemo(() => {
-    if (!membersData) return [];
+    if (!membersData) {
+      return [];
+    }
+    
     // Handle both { data: [] } and [] formats
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return Array.isArray(membersData) ? membersData : ((membersData as any).data || []);
+    if (Array.isArray(membersData)) {
+      return membersData as Member[];
+    }
+    
+    // Handle wrapped response
+    const wrappedData = membersData as { data?: Member[] };
+    return wrappedData.data || [];
   }, [membersData]);
 
-  // UI-only: Filter members based on current filters
+  // ⭐ UPDATED: Filter members based on current filters
   const filteredMembers = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return members.filter((member: any) => {
+    return members.filter((member: Member) => {
       // Date range filter - by joined date
       if (filters.dateFrom) {
-        const joinedDate = new Date(member.created_at || member.joinedDate);
+        const joinedDate = new Date(member.created_at);
         const fromDate = new Date(filters.dateFrom);
         if (joinedDate < fromDate) return false;
       }
 
       if (filters.dateTo) {
-        const joinedDate = new Date(member.created_at || member.joinedDate);
+        const joinedDate = new Date(member.created_at);
         const toDate = new Date(filters.dateTo + 'T23:59:59');
         if (joinedDate > toDate) return false;
       }
 
-      // Plan filter - by subscription plan
-      if (filters.plan !== "all") {
-        const memberPlanId = member.subscription_plan || member.plan_id || member.planId;
-        if (memberPlanId !== filters.plan) return false;
-      }
-
-      // Status filter
+      // ⭐ UPDATED: Status filter using direct user.status
       if (filters.status !== "all") {
-        const memberStatus = member.status;
-        if (filters.status === "active") {
-          if (memberStatus !== "active") return false;
-        } else if (filters.status === "inactive") {
-          if (memberStatus !== "inactive") return false;
-        } else if (filters.status === "expired") {
-          if (memberStatus !== "expired") return false;
-        }
+        const memberStatus = member.user?.status;
+        if (filters.status === "active" && memberStatus !== "active") return false;
+        if (filters.status === "inactive" && memberStatus !== "inactive") return false;
       }
 
       return true;
     });
   }, [members, filters]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-500 dark:text-gray-400">Loading members...</div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -107,16 +96,21 @@ export default function MembersPage() {
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Filters with SearchBar */}
       <MemberFilters 
         filters={filters} 
         onFiltersChange={setFilters}
         filteredCount={filteredMembers.length}
         totalCount={members.length}
+        isLoading={isLoading}
       />
 
       {/* Members Table */}
-      <MembersTable members={filteredMembers} />
+      <MembersTable 
+        members={filteredMembers} 
+        isSearching={filters.search.length > 0}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

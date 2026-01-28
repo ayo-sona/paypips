@@ -1,4 +1,4 @@
-import apiClient from '../apiClient';
+import apiClient from "../apiClient";
 
 export interface InitializePaymentDto {
   memberId: string;
@@ -11,29 +11,40 @@ export interface InitializePaymentDto {
 
 export interface Payment {
   id: string;
-  organization_id: string;
-  member_id: string;
-  member_name: string;
-  member_email: string;
+  payer_user: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
   amount: number;
   currency: string;
-  status: 'pending' | 'successful' | 'failed';
+  status: string;
   reference: string;
-  gateway: string;
-  method: string;
+  provider: string;
+  provider_reference: string;
   description?: string;
   metadata?: Record<string, unknown>; // Changed from any to unknown
-  paid_at?: string;
+  invoice: {
+    member_subscription: {
+      plan: { name: string };
+      auto_renew: boolean;
+    };
+    organization_subscription: {
+      plan: { name: string };
+      auto_renew: boolean;
+    };
+  };
   created_at: string;
   updated_at: string;
 }
 
 export interface PaymentStats {
-  totalRevenue: number;
-  monthlyRevenue: number;
-  monthlyPayments: number;
-  platformPayments: number;
-  manualPayments: number;
+  total_revenue: number;
+  total_expenses: number;
+  total_profit: number;
+  successful_payments: number;
+  failed_payments: number;
+  pending_payments: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -49,7 +60,7 @@ export interface PaginatedResponse<T> {
 export const paymentsApi = {
   // Initialize payment
   initialize: async (data: InitializePaymentDto): Promise<Payment> => {
-    const response = await apiClient.post('/payments/initialize', data);
+    const response = await apiClient.post("/payments/initialize", data);
     return response.data.data;
   },
 
@@ -57,9 +68,9 @@ export const paymentsApi = {
   getAll: async (
     page: number = 1,
     limit: number = 10,
-    status?: string
+    status?: string,
   ): Promise<PaginatedResponse<Payment>> => {
-    const response = await apiClient.get('/payments', {
+    const response = await apiClient.get("/payments", {
       params: { page, limit, status },
     });
     const payments = response.data.data || [];
@@ -82,7 +93,7 @@ export const paymentsApi = {
 
   // Get payment stats
   getStats: async (): Promise<PaymentStats> => {
-    const response = await apiClient.get('/payments/stats');
+    const response = await apiClient.get("/payments/stats");
     return response.data.data;
   },
 
@@ -90,7 +101,7 @@ export const paymentsApi = {
   getMemberPayments: async (
     memberId: string,
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<PaginatedResponse<Payment>> => {
     const response = await apiClient.get(`/payments/member/${memberId}`, {
       params: { page, limit },

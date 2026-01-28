@@ -1,10 +1,42 @@
-import { AnalyticsCards } from '../../../components/enterprise/AnalyticsCards';
-import { MembersGrowthChart } from '../../../components/enterprise/MembersGrowthChart';
-import { RevenueChart } from '../../../components/enterprise/RevenueChart';
-import { PlanDistributionChart } from '../../../components/enterprise/PlanDistributionChart';
-import { RecentMembersTable } from '../../../components/enterprise/RecentMembersTable';
+"use client";
+
+import { AnalyticsCards } from "../../../components/enterprise/AnalyticsCards";
+import { MembersGrowthChart } from "../../../components/enterprise/MembersGrowthChart";
+import { RevenueChart } from "../../../components/enterprise/RevenueChart";
+import { PlanDistributionChart } from "../../../components/enterprise/PlanDistributionChart";
+import { RecentMembersTable } from "../../../components/enterprise/RecentMembersTable";
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import apiClient from "@/lib/apiClient";
 
 export default function EnterpriseDashboardPage() {
+  const searchParams = useSearchParams();
+  const reference = searchParams.get("reference");
+
+  useEffect(() => {
+    if (reference) {
+      verifyPayment(reference);
+    }
+  }, [reference]);
+
+  const verifyPayment = async (ref: string) => {
+    try {
+      const { data } = await apiClient.get(`/payments/verify/${ref}`);
+
+      if (data.data.status === "success") {
+        // Show success message
+        alert("Payment successful! Your subscription is now active.");
+
+        // Update organization subscription status
+        await apiClient.patch(`/subscriptions/organizations/status`, {
+          status: "active",
+        });
+      }
+    } catch (error) {
+      console.error("Verification error:", error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}

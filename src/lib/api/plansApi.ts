@@ -54,7 +54,7 @@ export const plansApi = {
   // Create plan
   create: async (data: CreatePlanDto): Promise<Plan> => {
     const response = await apiClient.post("/member-plans", data);
-    return response.data.data; // Extract from wrapper
+    return response.data.data;
   },
 
   // Get all plans
@@ -65,8 +65,6 @@ export const plansApi = {
     const response = await apiClient.get("/member-plans", {
       params: { page, limit },
     });
-    // Backend returns: { statusCode, message, data: [...] }
-    // We need to wrap it properly
     const plans = response.data.data || [];
     return {
       data: plans,
@@ -102,7 +100,7 @@ export const plansApi = {
     await apiClient.delete(`/member-plans/${id}`);
   },
 
-  // Toggle plan active status
+  // ⭐ FIXED: Toggle plan active status
   toggleActive: async (id: string): Promise<Plan> => {
     const response = await apiClient.patch(`/member-plans/${id}/toggle`);
     return response.data.data;

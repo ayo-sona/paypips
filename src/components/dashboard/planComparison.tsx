@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Modal } from '../../components/ui/Modal';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/Badge';
 import { PlanId, BillingCycle, PlanFeature } from '../../types/subscription';
 import { PRICING_PLANS, ANNUAL_DISCOUNT } from '../../lib/constants';
@@ -168,7 +168,7 @@ export function PlanComparison({ isOpen, onClose, currentPlanId, onSelectPlan }:
                   <Button
                     className="w-full"
                     onClick={() => handleSelectPlan(plan.id)}
-                    isLoading={isLoading && selectedPlan === plan.id}
+                    // isLoading={isLoading && selectedPlan === plan.id}
                     disabled={isLoading}
                   >
                     {plan.id > currentPlanId ? 'Upgrade' : 'Downgrade'}

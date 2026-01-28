@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Search, Calendar, Filter, X } from 'lucide-react';
+import { Search, Calendar, Filter, X } from "lucide-react";
 
 interface PaymentFiltersProps {
   searchTerm: string;
@@ -11,8 +11,6 @@ interface PaymentFiltersProps {
   setDateTo: (value: string) => void;
   selectedSource: string;
   setSelectedSource: (value: string) => void;
-  selectedMethod: string;
-  setSelectedMethod: (value: string) => void;
   selectedStatus: string;
   setSelectedStatus: (value: string) => void;
   filteredCount: number;
@@ -27,28 +25,24 @@ export function PaymentFilters({
   setDateTo,
   selectedSource,
   setSelectedSource,
-  selectedMethod,
-  setSelectedMethod,
   selectedStatus,
   setSelectedStatus,
-  filteredCount
+  filteredCount,
 }: PaymentFiltersProps) {
   const clearFilters = () => {
-    setSearchTerm('');
-    setDateFrom('');
-    setDateTo('');
-    setSelectedSource('all');
-    setSelectedMethod('all');
-    setSelectedStatus('all');
+    setSearchTerm("");
+    setDateFrom("");
+    setDateTo("");
+    setSelectedSource("paystack");
+    setSelectedStatus("success");
   };
 
-  const hasActiveFilters = 
-    searchTerm || 
-    dateFrom || 
-    dateTo || 
-    selectedSource !== 'all' || 
-    selectedMethod !== 'all' || 
-    selectedStatus !== 'all';
+  const hasActiveFilters =
+    searchTerm ||
+    dateFrom ||
+    dateTo ||
+    selectedSource !== "paystack" ||
+    selectedStatus !== "success";
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
@@ -110,30 +104,9 @@ export function PaymentFilters({
               onChange={(e) => setSelectedSource(e.target.value)}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
             >
-              <option value="all">All Gateways</option>
               <option value="paystack">Paystack</option>
-              <option value="stripe">Stripe</option>
-              <option value="flutterwave">Flutterwave</option>
-              <option value="manual">Manual</option>
             </select>
           </div>
-        </div>
-
-        {/* Payment Method */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Payment Method
-          </label>
-          <select
-            value={selectedMethod}
-            onChange={(e) => setSelectedMethod(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
-          >
-            <option value="all">All Methods</option>
-            <option value="card">Card</option>
-            <option value="bank_transfer">Bank Transfer</option>
-            <option value="ussd">USSD</option>
-          </select>
         </div>
 
         {/* Payment Status */}
@@ -158,7 +131,8 @@ export function PaymentFilters({
       {hasActiveFilters && (
         <div className="flex justify-between items-center pt-2">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing <span className="font-semibold">{filteredCount}</span> results
+            Showing <span className="font-semibold">{filteredCount}</span>{" "}
+            results
           </p>
           <button
             onClick={clearFilters}
