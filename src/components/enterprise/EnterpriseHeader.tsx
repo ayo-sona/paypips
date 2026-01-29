@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button, Spinner } from "@heroui/react";
 import { Bell, LogOut } from "lucide-react";
-import { ThemeToggle } from "../layout/themeToggle";
+import { ThemeToggle } from "../layout/ThemeToggle";
 import { NotificationPanel } from "./EnterpriseNotificationPanel";
 import { useRouter } from "next/navigation";
 import apiClient from "@/lib/apiClient";
@@ -52,6 +52,7 @@ export function EnterpriseHeader() {
         {/* Notifications */}
         <div className="relative">
           <Button
+            variant="light"
             onPress={() => setShowNotifications(!showNotifications)}
             className="relative cursor-pointer rounded-lg p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
@@ -69,6 +70,7 @@ export function EnterpriseHeader() {
         </div>
         <Button
           onPress={handleLogout}
+          variant="light"
           className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-gray-700 transition-colors hover:bg-gray-100"
           title="Logout"
         >

@@ -114,7 +114,7 @@ export default function OrganizationSelectPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent mb-3">
+          <h1 className="text-4xl font-bold bg-white bg-clip-text text-transparent mb-3">
             Select an Organization
           </h1>
           <p className="text-default-600 text-lg">

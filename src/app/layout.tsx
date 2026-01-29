@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { QueryProvider } from "../providers/QueryProvider";
-// import { OrganizationProvider } from "../contexts/OrganizationContext";
+import { Providers } from "../providers/Providers";
 
 export const metadata: Metadata = {
-  title: "Willow Enterprise",
+  title: "ReeTrack Enterprise",
   description: "Manage your subscriptions and payments",
 };
 
@@ -14,11 +13,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html>
+    <html lang="en" suppressHydrationWarning>
       <body>
-        {/* <OrganizationProvider> */}
-        <QueryProvider>{children}</QueryProvider>
-        {/* </OrganizationProvider> */}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

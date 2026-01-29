@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardHeader,
@@ -15,7 +15,7 @@ import {
   ModalContent,
   ModalHeader,
   ModalBody,
-  ModalFooter,
+  Spinner,
   Image,
 } from "@heroui/react";
 import {
@@ -32,7 +32,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import apiClient from "@/lib/apiClient";
-import PaystackPop from "@paystack/inline-js";
+import { usePaystack } from "@/hooks/usePaystack";
 
 type BillingCycle = "monthly" | "annually";
 
@@ -40,16 +40,10 @@ interface Plan {
   id: string;
   name: string;
   description: string;
-  price: {
-    monthly: string;
-    annually: string;
-  };
+  price: string;
   priceSuffix: string;
   features: string[];
   mostPopular: boolean;
-  buttonText: string;
-  buttonVariant: "solid" | "bordered" | "flat" | "light" | "faded";
-  color: "default" | "primary" | "secondary" | "success" | "warning" | "danger";
 }
 
 const features = [
@@ -59,75 +53,6 @@ const features = [
   { name: "Email", icon: Mail },
   { name: "Domains", icon: Globe },
   { name: "Security", icon: Lock },
-];
-
-const plans: Plan[] = [
-  {
-    id: "starter",
-    name: "Starter",
-    description: "Perfect for small teams getting started",
-    price: {
-      monthly: "$29",
-      annually: "$290",
-    },
-    priceSuffix: "/month",
-    features: [
-      "Up to 10 users",
-      "50GB storage",
-      "Email support",
-      "Basic analytics",
-      "API access",
-      "Community forum",
-    ],
-    mostPopular: false,
-    buttonText: "Get Started",
-    buttonVariant: "bordered",
-    color: "default",
-  },
-  {
-    id: "pro",
-    name: "Professional",
-    description: "For growing teams with advanced needs",
-    price: {
-      monthly: "$99",
-      annually: "$950",
-    },
-    priceSuffix: "/month",
-    features: [
-      "Up to 50 users",
-      "500GB storage",
-      "Priority email support",
-      "Advanced analytics",
-      "API access",
-      "Dedicated account manager",
-    ],
-    mostPopular: true,
-    buttonText: "Start Free Trial",
-    buttonVariant: "solid",
-    color: "primary",
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    description: "For organizations with custom requirements",
-    price: {
-      monthly: "Custom",
-      annually: "Custom",
-    },
-    priceSuffix: "",
-    features: [
-      "Unlimited users",
-      "Custom storage",
-      "24/7 priority support",
-      "Custom analytics",
-      "API access",
-      "Dedicated infrastructure",
-    ],
-    mostPopular: false,
-    buttonText: "Contact Sales",
-    buttonVariant: "bordered",
-    color: "secondary",
-  },
 ];
 
 const includedFeatures = [
@@ -142,8 +67,21 @@ const includedFeatures = [
 export default function EnterprisePlansPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(false);
+  const { paystack, initializePaystack } = usePaystack();
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const plans = await apiClient.get("/plans/organization");
+      console.log(plans.data.data);
+      setPlans(plans.data.data);
+      setLoading(false);
+    })();
+    initializePaystack();
+  }, []);
 
   const handlePlanSelect = (plan: Plan) => {
     setSelectedPlan(plan);
@@ -173,13 +111,16 @@ export default function EnterprisePlansPage() {
       });
 
       // 2. Initialize Paystack payment
-      const { data: payment } = await apiClient.post("/payments/initialize", {
-        invoiceId: invoice.id,
-      });
+      const { data: payment } = await apiClient.post(
+        "/payments/organization/initialize",
+        {
+          invoiceId: invoice.id,
+        },
+      );
 
       // 3. Redirect to Paystack
-      const popup = new PaystackPop();
-      popup.resumeTransaction(payment.access_code);
+      if (!paystack) return;
+      paystack.resumeTransaction(payment.access_code);
       //   window.location.href = payment.authorization_url;
     } catch (error) {
       console.error("Subscription error:", error);
@@ -188,6 +129,10 @@ export default function EnterprisePlansPage() {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return <Spinner size="lg" color="success" />;
+  }
 
   return (
     <div className="w-full h-full overflow-y-auto hide-scrollbar">
@@ -214,7 +159,7 @@ export default function EnterprisePlansPage() {
                 onValueChange={(isSelected) =>
                   setBillingCycle(isSelected ? "annually" : "monthly")
                 }
-                color="primary"
+                color="success"
                 size="lg"
               />
               <div className="flex items-center gap-2">
@@ -249,14 +194,8 @@ export default function EnterprisePlansPage() {
                   </p>
                   <div className="mt-4">
                     <span className="text-3xl md:text-4xl font-bold">
-                      {plan.price[billingCycle]}
+                      {plan.price}
                     </span>
-                    {plan.priceSuffix && (
-                      <span className="text-foreground-500">
-                        {" "}
-                        {plan.priceSuffix}
-                      </span>
-                    )}
                     {billingCycle === "annually" &&
                       plan.id !== "enterprise" && (
                         <span className="block text-sm text-foreground-500 mt-1">
@@ -278,14 +217,14 @@ export default function EnterprisePlansPage() {
                 </CardBody>
                 <CardFooter className="shrink-0">
                   <Button
-                    color={plan.color as any}
-                    variant={plan.buttonVariant}
+                    color="success"
+                    variant="solid"
                     className="w-full"
                     size="lg"
                     onPress={() => handlePlanSelect(plan)}
                     endContent={<ArrowRight size={18} />}
                   >
-                    {plan.buttonText}
+                    Subscribe
                   </Button>
                 </CardFooter>
               </Card>
@@ -322,6 +261,9 @@ export default function EnterprisePlansPage() {
                           <div className="flex flex-col items-center">
                             <span className="text-base md:text-lg font-semibold">
                               {plan.name}
+                            </span>
+                            <span className="text-base md:text-lg font-semibold">
+                              {plan.price}
                             </span>
                             {plan.mostPopular && (
                               <span className="text-xs bg-primary-100 text-primary-600 px-2 py-0.5 rounded-full mt-1">
@@ -385,7 +327,7 @@ export default function EnterprisePlansPage() {
                         plan
                       </p>
                       <p className="text-2xl font-bold">
-                        {selectedPlan?.price.monthly}
+                        {selectedPlan?.price}
                         <span className="text-base font-normal text-foreground-500">
                           {selectedPlan?.priceSuffix}
                         </span>
@@ -393,7 +335,7 @@ export default function EnterprisePlansPage() {
                       {billingCycle === "annually" &&
                         selectedPlan?.id !== "enterprise" && (
                           <p className="text-sm text-foreground-500 mt-1">
-                            Billed annually at {selectedPlan?.price.annually}
+                            Billed annually at {selectedPlan?.price}
                           </p>
                         )}
                     </div>
