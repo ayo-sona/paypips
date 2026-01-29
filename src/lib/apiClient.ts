@@ -11,8 +11,8 @@ interface RetryConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-const BASE_URL = "https://paypips.onrender.com/api/v1";
-// const BASE_URL = "http://localhost:4000/api/v1";
+// const BASE_URL = "https://paypips.onrender.com/api/v1";
+const BASE_URL = "http://localhost:4000/api/v1";
 
 // Prevent multiple simultaneous refresh requests
 let isRefreshing = false;

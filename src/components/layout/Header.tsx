@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useAuth } from '../../features/auth/authContext';
-import { ThemeToggle } from './themeToggle';
-import { NotificationCenter } from '../../components/dashboard/NotificationCenter';
+import React from "react";
+import { useAuth } from "../../features/auth/authContext";
+import { ThemeToggle } from "./ThemeToggle";
+import { NotificationCenter } from "../../components/dashboard/NotificationCenter";
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -22,7 +22,7 @@ export function Header() {
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <NotificationCenter />
-            
+
             {/* User menu */}
             <div className="relative">
               <button
@@ -30,7 +30,8 @@ export function Header() {
                 className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-medium">
-                  {user?.firstName[0]}{user?.lastName[0]}
+                  {user?.firstName[0]}
+                  {user?.lastName[0]}
                 </div>
               </button>
 
